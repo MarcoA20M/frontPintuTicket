@@ -1,0 +1,33 @@
+.header {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 2rem;
+    padding: 1.5rem 2rem;
+    
+}
+
+
+.header-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 15px;
+    color: var(--text-color-light);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    
+}
+
+.header-link:hover {
+    background: rgb(255, 255, 255);
+    transform: translateY(-2px);
+}
+
+.header-icon {
+    color: var(--text-color-light);
+    width: 24px;
+    height: 24px;
+}

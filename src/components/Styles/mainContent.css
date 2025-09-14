@@ -1,0 +1,83 @@
+.main-content-wrapper {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    margin-left: 300px;
+    min-height: 100vh;   
+    background: rgba(255, 255, 255, 0); /* Este sirva para ajustar el cuadro de texto del chat si lo quiero mas blando o transparte*/
+    backdrop-filter: blur(5px);
+}
+
+
+.company-info {
+    margin-right: auto;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.years-badge {
+    font-size: 2rem;
+    font-weight: 700;
+    background: white;
+    color: var(--purple-primary);
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow);
+}
+
+.main-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 2rem;
+    position: relative; 
+}
+
+.main-title {
+    font-size: 1.8rem;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+    text-align: center;
+    color: white;
+}
+
+.chat-container {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 400px;
+    padding: 1.5rem;
+    background: rgba(255, 255, 255, 0.15); 
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+.chat-history {
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-height: 60vh;
+    padding: 1.5rem;
+    background: transparent;
+}
+
+.initial-message {
+    text-align: center;
+    color: var(--text-color-dark);
+    font-size: 1.2rem;
+    font-weight: 500;
+    margin-bottom: 1.5rem;
+    padding: 0;
+    font-style: normal;
+}

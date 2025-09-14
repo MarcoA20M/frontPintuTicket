@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { getAllTipoTickets } from "../services/tipoTicketService";
 import { createTicket, hayTicketMaestroEnProceso } from "../services/ticketService";
+import '../components/Styles/mainContent.css';
 
 const MainContent = () => {
     const [issue, setIssue] = useState("");
@@ -13,7 +14,7 @@ const MainContent = () => {
         usuario: "Pedro",
         estatus: "Abierto",
         prioridad: "Alta"
-    };
+    };  
 
     useEffect(() => {
         const fetchTipos = async () => {
