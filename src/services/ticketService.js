@@ -33,3 +33,35 @@ export const hayTicketMaestroEnProceso = async (tipoTicket) => {
         return false; // en caso de error asumimos que no hay maestro
     }
 };
+
+// --- NUEVO ---
+// Obtener todos los tickets
+export const getAllTickets = async () => {
+    try {
+        const response = await fetch(`${BASE_URL}`);
+        if (!response.ok) {
+            throw new Error("Error al obtener todos los tickets");
+        }
+        const tickets = await response.json();
+        return tickets;
+    } catch (error) {
+        console.error("Error en ticketService:", error);
+        throw error;
+    }
+};
+
+// --- NUEVO ---
+// Obtener tickets por usuario
+export const getTicketsByUsuario = async (nombreUsuario) => {
+    try {
+        const response = await fetch(`${BASE_URL}/usuario/${nombreUsuario}`);
+        if (!response.ok) {
+            throw new Error("Error al obtener los tickets del usuario");
+        }
+        const tickets = await response.json();
+        return tickets;
+    } catch (error) {
+        console.error("Error en ticketService:", error);
+        throw error;
+    }
+};

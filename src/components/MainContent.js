@@ -4,9 +4,7 @@ import { createTicket, hayTicketMaestroEnProceso } from "../services/ticketServi
 
 const MainContent = () => {
     const [issue, setIssue] = useState("");
-    const [messages, setMessages] = useState([
-        { text: "¿En qué te podemos ayudar hoy?", sender: "system" }
-    ]);
+    const [messages, setMessages] = useState([]);
     const [tipoTickets, setTipoTickets] = useState([]);
     const [loadingTipos, setLoadingTipos] = useState(true);
     const [ticketSeleccionado, setTicketSeleccionado] = useState(null);
@@ -42,7 +40,14 @@ const MainContent = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!ticketSeleccionado) return;
+        if (!ticketSeleccionado) {
+            setMessages(prev => [
+                ...prev, 
+                { text: "⚠️ Primero selecciona un tipo de ticket.", sender: "system" }
+            ]);
+            return;
+        }
+
         const userInput = issue.trim();
         if (!userInput) return;
 
@@ -51,7 +56,7 @@ const MainContent = () => {
 
         const requestBody = {
             ...staticData,
-            tipo_ticket: ticketSeleccionado.tipo, // Se asigna dinámicamente
+            tipo_ticket: ticketSeleccionado.tipo,
             descripcion: userInput,
             fechaCreacion: new Date().toISOString(),
         };
@@ -64,7 +69,10 @@ const MainContent = () => {
                     "Ya hay un Ticket Maestro en proceso para este tipo de ticket. ¿Deseas continuar y crear tu ticket?"
                 );
                 if (!continuar) {
-                    setMessages(prev => [...prev, { text: "Se canceló la creación del ticket.", sender: "system" }]);
+                    setMessages(prev => [
+                        ...prev, 
+                        { text: "Se canceló la creación del ticket.", sender: "system" }
+                    ]);
                     setTicketSeleccionado(null);
                     return;
                 }
@@ -72,10 +80,16 @@ const MainContent = () => {
 
             // Crear el ticket
             const createdTicket = await createTicket(requestBody);
-            setMessages(prev => [...prev, { text: `Ticket enviado con éxito. Folio: ${createdTicket.folio}`, sender: "system" }]);
+            setMessages(prev => [
+                ...prev, 
+                { text: `✅ Ticket enviado con éxito. Folio: ${createdTicket.folio}`, sender: "system" }
+            ]);
             setTicketSeleccionado(null);
         } catch (error) {
-            setMessages(prev => [...prev, { text: "Error al enviar el ticket. Revisa el servidor.", sender: "system" }]);
+            setMessages(prev => [
+                ...prev, 
+                { text: "❌ Error al enviar el ticket. Revisa el servidor.", sender: "system" }
+            ]);
         }
     };
 
@@ -108,19 +122,17 @@ const MainContent = () => {
                 )}
             </div>
 
-            {/* Input solo después de seleccionar un tipo */}
-            {ticketSeleccionado && (
-                <form onSubmit={handleSubmit} className="input-container">
-                    <input
-                        type="text"
-                        className="issue-input"
-                        placeholder="Describe tu problema..."
-                        value={issue}
-                        onChange={(e) => setIssue(e.target.value)}
-                    />
-                    <button type="submit" className="send-button">➤</button>
-                </form>
-            )}
+            {/* 🔥 Input SIEMPRE visible */}
+            <form onSubmit={handleSubmit} className="input-container">
+                <input
+                    type="text"
+                    className="issue-input"
+                    placeholder="Describe tu problema..."
+                    value={issue}
+                    onChange={(e) => setIssue(e.target.value)}
+                />
+                <button type="submit" className="send-button">➤</button>
+            </form>
         </main>
     );
 };
