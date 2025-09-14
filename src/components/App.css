@@ -230,6 +230,31 @@ body {
     margin-top: 5px;
     font-weight: 400;
 }
+.tipo-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 1rem;
+    justify-content: center;
+}
+
+.tipo-button {
+    background: linear-gradient(135deg, var(--purple-primary), var(--purple-secondary));
+    color: var(--text-color-light);
+    border: none;
+    border-radius: 12px;
+    padding: 12px 20px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    box-shadow: var(--shadow);
+    transition: all 0.2s ease;
+}
+
+.tipo-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+}
 
 /* MAIN CONTENT STYLES */
 .main-content {
@@ -582,4 +607,44 @@ body {
     color: var(--text-color-light);
 }
 
-/* ... (resto del código sin cambios) ... */
+.tipo-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    padding: 20px;
+    background: linear-gradient(135deg, #ffffff, #f0f0f0);
+    border-radius: 20px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    margin: 1rem 0;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.tipo-container:hover {
+    transform: scale(1.02);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+}
+
+.tipo-button {
+    padding: 15px 25px;
+    background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px rgba(106, 17, 203, 0.3);
+}
+
+.tipo-button:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 20px rgba(106, 17, 203, 0.5);
+    background: linear-gradient(135deg, #2575fc 0%, #6a11cb 100%);
+}
+
+.tipo-button:active {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 3px 10px rgba(106, 17, 203, 0.3);
+}
