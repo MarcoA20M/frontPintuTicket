@@ -2,7 +2,7 @@
 /*eslint-disable*/
 import React, { useState, useEffect } from 'react';
 import { getTicketsByUsuario } from '../services/ticketService';
-import './App.css';  // Asegúrate de tener este archivo para los estilos
+import '../components/Styles/sidebar.css';  // Asegúrate de tener este archivo para los estilos
 
 const Sidebar = ({ onTicketClick, selectedTicket, onViewChange }) => {
   const sidebarBg = "linear-gradient(145deg, #d10cc7ff 30%, #a50659ff 100%, #5A0F3B 90%)";
