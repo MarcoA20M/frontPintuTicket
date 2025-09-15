@@ -1,26 +1,25 @@
-// src/App.js
 import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import MainContent from './components/MainContent';
 import TicketDetailChat from './components/TicketDetailChat';
-import TicketList from './components/TicketList'; // Importa el nuevo componente
+import TicketList from './components/TicketList';
 import './components/App.css';
+// 1. Importa el proveedor de notificaciones
+import { NotificationProvider } from './contexts/NotificationContext'; 
 
 function App() {
     const [selectedTicket, setSelectedTicket] = useState(null);
-    const [currentView, setCurrentView] = useState('main'); // Nuevo estado para la vista
+    const [currentView, setCurrentView] = useState('main');
 
-    // Función para manejar el clic en un ticket específico
     const handleTicketClick = (ticket) => {
         setSelectedTicket(ticket);
-        setCurrentView('ticketDetail'); // Cambia la vista a los detalles del ticket
+        setCurrentView('ticketDetail');
     };
 
-    // Función para cambiar la vista general (usada por "Historial de tickets")
     const handleViewChange = (viewName) => {
         setCurrentView(viewName);
-        setSelectedTicket(null); // Limpiamos el ticket seleccionado al cambiar de vista
+        setSelectedTicket(null);
     };
 
     const renderMainContent = () => {
@@ -30,23 +29,28 @@ function App() {
         if (currentView === 'allTickets') {
             return <TicketList />;
         }
+        // Asumiendo que MainContent es donde se crea el ticket,
+        // o que renderiza un componente hijo que lo hace,
+        // este componente y sus hijos ahora tendrán acceso al contexto de notificaciones.
         return <MainContent selectedTicket={selectedTicket} />;
     };
 
     return (
-        <div className="container">
-            {/* Le pasamos las nuevas props a Sidebar */}
-            <Sidebar 
-                onTicketClick={handleTicketClick} 
-                onViewChange={handleViewChange}
-                selectedTicket={selectedTicket}
-            /> 
-            
-            <div className="main-content-wrapper">
-                <Header />
-                {renderMainContent()}
+        // 2. Envuelve toda la aplicación con el NotificationProvider
+        <NotificationProvider>
+            <div className="container">
+                <Sidebar 
+                    onTicketClick={handleTicketClick} 
+                    onViewChange={handleViewChange}
+                    selectedTicket={selectedTicket}
+                /> 
+                
+                <div className="main-content-wrapper">
+                    <Header />
+                    {renderMainContent()}
+                </div>
             </div>
-        </div>
+        </NotificationProvider>
     );
 }
 

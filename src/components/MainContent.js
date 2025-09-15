@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { getAllTipoTickets } from "../services/tipoTicketService";
 import { createTicket, hayTicketMaestroEnProceso } from "../services/ticketService";
+import { useNotifications } from '../contexts/NotificationContext'; // 1. Importa el hook
 import '../components/Styles/mainContent.css';
 
 const MainContent = () => {
@@ -10,11 +11,13 @@ const MainContent = () => {
     const [loadingTipos, setLoadingTipos] = useState(true);
     const [ticketSeleccionado, setTicketSeleccionado] = useState(null);
 
+    // 2. Obtén la función addNotification del contexto
+    const { addNotification } = useNotifications();
+
     const staticData = {
         usuario: "Pedro",
-        estatus: "Abierto",
         prioridad: "Alta"
-    };  
+    };
 
     useEffect(() => {
         const fetchTipos = async () => {
@@ -30,11 +33,10 @@ const MainContent = () => {
         fetchTipos();
     }, []);
 
-    // Cuando el usuario hace clic en un tipo de ticket
     const handleTipoClick = (tipo) => {
         setTicketSeleccionado(tipo);
         setMessages(prev => [
-            ...prev, 
+            ...prev,
             { text: `Describe tu problema relacionado con: ${tipo.tipo}`, sender: "system" }
         ]);
     };
@@ -43,7 +45,7 @@ const MainContent = () => {
         e.preventDefault();
         if (!ticketSeleccionado) {
             setMessages(prev => [
-                ...prev, 
+                ...prev,
                 { text: "⚠️ Primero selecciona un tipo de ticket.", sender: "system" }
             ]);
             return;
@@ -57,13 +59,13 @@ const MainContent = () => {
 
         const requestBody = {
             ...staticData,
+            estatus: "Abierto",
             tipo_ticket: ticketSeleccionado.tipo,
             descripcion: userInput,
             fechaCreacion: new Date().toISOString(),
         };
 
         try {
-            // Verificar si hay un Ticket Maestro en proceso
             const maestroActivo = await hayTicketMaestroEnProceso(ticketSeleccionado.tipo);
             if (maestroActivo) {
                 const continuar = window.confirm(
@@ -71,7 +73,7 @@ const MainContent = () => {
                 );
                 if (!continuar) {
                     setMessages(prev => [
-                        ...prev, 
+                        ...prev,
                         { text: "Se canceló la creación del ticket.", sender: "system" }
                     ]);
                     setTicketSeleccionado(null);
@@ -79,19 +81,44 @@ const MainContent = () => {
                 }
             }
 
-            // Crear el ticket
             const createdTicket = await createTicket(requestBody);
+
+            // 3. Llama a la función de notificación
+            // Avisamos al sistema de notificaciones que se creó un nuevo ticket
+            addNotification(
+                createdTicket.folio,
+                `Tu nuevo ticket ha sido creado y asignado al ingeniero ${createdTicket.ingeniero}.`
+            );
+
+            // Mostrar mensaje de éxito en el chat
             setMessages(prev => [
-                ...prev, 
-                { text: `✅ Ticket enviado con éxito. Folio: ${createdTicket.folio}`, sender: "system" }
+                ...prev,
+                {
+                    text: `✅ Ticket enviado con éxito.
+                    Folio: ${createdTicket.folio}
+                    Estatus: ${createdTicket.estatus}
+                    Ingeniero asignado: ${createdTicket.ingeniero}`,
+                    sender: "system"
+                }
             ]);
+
             setTicketSeleccionado(null);
         } catch (error) {
             setMessages(prev => [
-                ...prev, 
+                ...prev,
                 { text: "❌ Error al enviar el ticket. Revisa el servidor.", sender: "system" }
             ]);
         }
+    };
+
+    // Esta función no es usada en el componente MainContent
+    // pero la mantendré en caso de que la uses en otro lugar.
+    const getDescripcionResumen = (descripcion) => {
+        const maxLength = 25;
+        if (descripcion.length > maxLength) {
+            return descripcion.substring(0, maxLength) + '...';
+        }
+        return descripcion;
     };
 
     return (
@@ -107,7 +134,6 @@ const MainContent = () => {
                     </div>
                 ))}
 
-                {/* Mostrar los botones de tipos solo si no hay ticket seleccionado */}
                 {!ticketSeleccionado && !loadingTipos && (
                     <div className="tipo-container">
                         {tipoTickets.map(tipo => (
@@ -123,7 +149,6 @@ const MainContent = () => {
                 )}
             </div>
 
-            {/* 🔥 Input SIEMPRE visible */}
             <form onSubmit={handleSubmit} className="input-container">
                 <input
                     type="text"
