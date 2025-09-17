@@ -1,57 +1,47 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import MainContent from './components/MainContent';
 import TicketDetailChat from './components/TicketDetailChat';
 import TicketList from './components/TicketList';
+import Perfil from './components/PerfilScreen';
 import './components/App.css';
-// 1. Importa el proveedor de notificaciones
-import { NotificationProvider } from './contexts/NotificationContext'; 
+
+// Proveedor de notificaciones
+import { NotificationProvider } from './contexts/NotificationContext';
 
 function App() {
-    const [selectedTicket, setSelectedTicket] = useState(null);
-    const [currentView, setCurrentView] = useState('main');
+  return (
+    <NotificationProvider>
+      <Router>
+        <div className="container">
+          <Sidebar />
 
-    const handleTicketClick = (ticket) => {
-        setSelectedTicket(ticket);
-        setCurrentView('ticketDetail');
-    };
+          <div className="main-content-wrapper">
+            <Header />
+            <Routes>
+              {/* Pantalla principal para crear ticket */}
+              <Route path="/" element={<MainContent />} />
 
-    const handleViewChange = (viewName) => {
-        setCurrentView(viewName);
-        setSelectedTicket(null);
-    };
+              {/* Lista de todos los tickets */}
+              <Route path="/all-tickets" element={<TicketList />} />
 
-    const renderMainContent = () => {
-        if (currentView === 'ticketDetail' && selectedTicket) {
-            return <TicketDetailChat ticket={selectedTicket} />;
-        }
-        if (currentView === 'allTickets') {
-            return <TicketList />;
-        }
-        // Asumiendo que MainContent es donde se crea el ticket,
-        // o que renderiza un componente hijo que lo hace,
-        // este componente y sus hijos ahora tendrán acceso al contexto de notificaciones.
-        return <MainContent selectedTicket={selectedTicket} />;
-    };
+              {/* Detalle de un ticket por folio */}
+              <Route path="/ticket/:folio" element={<TicketDetailChat />} />
 
-    return (
-        // 2. Envuelve toda la aplicación con el NotificationProvider
-        <NotificationProvider>
-            <div className="container">
-                <Sidebar 
-                    onTicketClick={handleTicketClick} 
-                    onViewChange={handleViewChange}
-                    selectedTicket={selectedTicket}
-                /> 
-                
-                <div className="main-content-wrapper">
-                    <Header />
-                    {renderMainContent()}
-                </div>
-            </div>
-        </NotificationProvider>
-    );
+              {/* Ruta para crear nuevo ticket */}
+              <Route path="/new-ticket" element={<MainContent />} />
+
+              {/* Perfil del usuario */}
+              <Route path="/perfil" element={<Perfil />} />
+            </Routes>
+          </div>
+        </div>
+      </Router>
+    </NotificationProvider>
+  );
 }
 
 export default App;

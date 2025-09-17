@@ -1,13 +1,13 @@
+/* Estilos generales del Main Content */
 .main-content-wrapper {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
     margin-left: 300px;
-    min-height: 100vh;   
-    background: rgba(255, 255, 255, 0); /* Este sirva para ajustar el cuadro de texto del chat si lo quiero mas blando o transparte*/
+    min-height: 100vh;
+    background: rgba(255, 255, 255, 0);
     backdrop-filter: blur(5px);
 }
-
 
 .company-info {
     margin-right: auto;
@@ -35,7 +35,7 @@
     display: flex;
     flex-direction: column;
     padding: 2rem;
-    position: relative; 
+    position: relative;
 }
 
 .main-title {
@@ -54,7 +54,7 @@
     flex-direction: column;
     min-height: 400px;
     padding: 1.5rem;
-    background: rgba(255, 255, 255, 0.15); 
+    background: rgba(255, 255, 255, 0.15);
     backdrop-filter: blur(10px);
     border-radius: 15px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
@@ -80,4 +80,77 @@
     margin-bottom: 1.5rem;
     padding: 0;
     font-style: normal;
+}
+
+.back-button {
+    background-color: transparent;
+    border: 1px solid white;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    transition: background-color 0.3s ease;
+}
+
+.back-button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.tipo-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+    justify-content: center;
+}
+
+.tipo-button {
+    background-color: var(--purple-primary);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.tipo-button:hover {
+    background-color: var(--purple-hover);
+}
+
+
+
+
+/* El botón de enviar se posiciona de forma absoluta con relación al .input-group */
+.send-button {
+    position: absolute;
+    right: 45px; /* Se ajusta para que esté dentro del .input-group */
+    top: 50%;
+    transform: translateY(-50%);
+    background: linear-gradient(to right, var(--purple-primary) 0%, var(--purple-secondary) 100%);
+    border: none;
+    cursor: pointer;
+    color: #fff;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    box-shadow: 0 3px 10px rgba(106, 17, 203, 0.3);
+    transition: all 0.2s ease;
+}
+
+.send-button:hover {
+    transform: translateY(-50%) scale(1.05);
+    box-shadow: 0 4px 12px rgba(106, 17, 203, 0.4);
+}
+
+.send-button:active {
+    transform: translateY(-50%) scale(0.95);
 }

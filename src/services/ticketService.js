@@ -65,3 +65,17 @@ export const getTicketsByUsuario = async (nombreUsuario) => {
         throw error;
     }
 };
+
+
+// Obtener ticket por ID
+export const getTicketById = async (id) => {
+    try {
+        const response = await fetch(`${BASE_URL}/${id}`);
+        if (!response.ok) throw new Error("Ticket no encontrado");
+        const ticket = await response.json();
+        return ticket;
+    } catch (error) {
+        console.error("Error en getTicketById:", error);
+        throw error;
+    }
+};

@@ -1,0 +1,75 @@
+/* Contenedor principal para el fondo y la alineación */
+.perfil-container {
+    padding: 40px 60px; /* Espaciado para el contenido */
+    color: #fff; /* Color del texto */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* Alinea el contenido a la izquierda */
+    width: 100%;
+    /* Aquí puedes colocar el gradiente del fondo si es necesario */
+ 
+}
+
+/* Título de la página */
+.perfil-container h2 {
+    font-size: 2.2rem;
+    margin-bottom: 40px;
+    color: #fff;
+    font-weight: 600;
+}
+
+/* Contenedor de la información del perfil (ícono y datos) */
+.perfil-info-wrapper {
+    display: flex;
+    align-items: center; /* Alinea el ícono y el texto verticalmente */
+    gap: 30px; /* Espacio entre el ícono y el texto */
+}
+
+/* Ícono de usuario */
+.perfil-icon {
+    width: 120px;
+    height: 120px;
+    background-color: #ffdf5d; /* Color amarillo del ícono */
+    border-radius: 50%; /* Forma circular */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2); /* Sombra para darle un efecto de elevación */
+}
+
+.perfil-icon img {
+    width: 100%;
+    height: 100%;
+    /* Esto es opcional, si usas una imagen SVG de un usuario */
+}
+
+/* Contenido de texto del perfil */
+.perfil-details {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.6;
+}
+
+.perfil-details p {
+    margin: 8px 0; /* Espacio entre cada línea de texto */
+    font-size: 1.2rem;
+}
+
+.perfil-details strong {
+    font-weight: 600;
+    color: #ffdf5d; /* Color de acento para los labels */
+    margin-right: 8px; /* Espacio entre el label y el valor */
+}
+
+/* Animación de entrada opcional */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
