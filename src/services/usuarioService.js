@@ -94,3 +94,4 @@ export const deleteUsuario = async (usuarioData) => {
         throw error;
     }
 };
+

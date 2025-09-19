@@ -1,7 +1,9 @@
+// src/components/Login.js
 import React, { useState } from "react";
 import { login } from "../services/authService";
 
-const Login = () => {
+// Recibe la prop 'onLoginSuccess'
+const Login = ({ onLoginSuccess }) => { 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -11,6 +13,9 @@ const Login = () => {
     try {
       const data = await login(username, password);
       setMessage(data.message);
+      if (onLoginSuccess) { // 👈 Si la prop existe, la llamamos
+        onLoginSuccess();
+      }
     } catch (error) {
       setMessage(error.message);
     }
