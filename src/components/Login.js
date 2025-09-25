@@ -31,10 +31,24 @@ const LoginPage = ({ onLoginSuccess }) => {
 
   // Esto reemplaza a function playVideo()
   const playVideo = () => {
-    if (videoRef.current) {
-      videoRef.current.play().catch(error => {
-        console.log("Error attempting to play video: ", error);
-      });
+    if (!videoRef.current) return;
+
+    // Intentar reproducir y capturar errores (políticas de autoplay)
+    videoRef.current.play().catch(error => {
+      console.log("Error attempting to play video: ", error);
+    });
+  };
+
+  // Reinicia y reproduce el video cuando termina (fallback si loop no funciona)
+  const handleVideoEnded = () => {
+    if (!videoRef.current) return;
+    try {
+      // Reiniciar al inicio
+      videoRef.current.currentTime = 0;
+      // Intentar reproducir de nuevo
+      videoRef.current.play().catch(err => console.log('Error replaying video:', err));
+    } catch (err) {
+      console.log('Error handling video end:', err);
     }
   };
 
@@ -77,6 +91,8 @@ const LoginPage = ({ onLoginSuccess }) => {
         id="myVideo" 
         muted 
         onClick={playVideo}
+        onEnded={handleVideoEnded}
+        loop={false} /* usamos onEnded para controlar el replay y compatibilidad */
         src={video} 
         type="video/mp4"
       ></video>
@@ -92,7 +108,7 @@ const LoginPage = ({ onLoginSuccess }) => {
           <li><a href="">servicios</a></li>
           <li><a href="">contacto</a></li>
           {/* Cambiado para usar toggleLogin */}
-          <li><a onClick={toggleLogin} className="login" href="#">Sing up</a></li>
+          <li><a onClick={toggleLogin} className="login" href="#">Iniciar sesión</a></li>
         </ul>
       </header>
 
