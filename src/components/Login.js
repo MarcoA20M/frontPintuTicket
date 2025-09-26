@@ -16,13 +16,12 @@ const LoginPage = ({ onLoginSuccess }) => {
 
   // Esto reemplaza a window.onload = () => { video.click(); }
   useEffect(() => {
-    // Simular click en el video cuando el componente se monta
     if (videoRef.current) {
       videoRef.current.click();
     }
   }, []);
 
-  // Esto reemplaza a function Login()
+  
   const toggleLogin = () => {
     // En React, manipulamos clases através del estado
     setShowLoginForm(!showLoginForm);
@@ -31,11 +30,9 @@ const LoginPage = ({ onLoginSuccess }) => {
     document.body.classList.toggle("opened");
   };
 
-  // Esto reemplaza a function playVideo()
   const playVideo = () => {
     if (!videoRef.current) return;
 
-    // Intentar reproducir y capturar errores (políticas de autoplay)
     videoRef.current.play().catch(error => {
       console.log("Error attempting to play video: ", error);
     });
@@ -62,19 +59,21 @@ const LoginPage = ({ onLoginSuccess }) => {
     }));
   };
 
+  //esto redirige al componente principal si el login es exitoso
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Llama a la API de login
+      
       const data = await authLogin(formData.username, formData.password);
       // Extrae y adapta los datos del backend
-      const { givenName, sn, displayName, mail, username } = data;
+      const { givenName, sn, displayName, mail, username, accessToken } = data;
       const usuario = {
         nombre: givenName || displayName || username,
         apePat: sn ? sn.split(' ')[0] : '',
         apeMat: sn ? sn.split(' ')[1] || '' : '',
         correo: mail,
-        userName: username
+        userName: username,
+        token: accessToken
       };
       localStorage.setItem('usuario', JSON.stringify(usuario));
       if (onLoginSuccess) {
@@ -85,6 +84,15 @@ const LoginPage = ({ onLoginSuccess }) => {
     }
   };
 
+  // function getUserRoleFromToken(token) {
+  //   if (!token) return null;
+  //   try {
+  //     const payload = JSON.parse(atob(token.split('.')[1]));
+  //     return payload.role || null;
+  //   } catch {
+  //     return null;
+  //   }
+  // } 
   // Componentes SVG
   const UserIcon = () => (
     <svg width="24px" height="24px" strokeWidth="1.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" color="#000000">
@@ -175,7 +183,7 @@ const LoginPage = ({ onLoginSuccess }) => {
               </div>
               <a href="#">forgot password</a>
             </div>
-            <button type="submit" className="login-button">login</button>
+            <button type="submit" className="login-button">Iniciar sesión</button>
             <p>Don't have an account? <a className="sing-up" href="#">Sign up</a></p>
           </form> 
         </main>
