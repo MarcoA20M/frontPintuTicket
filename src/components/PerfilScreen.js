@@ -1,23 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { getUsuarioById } from "../services/usuarioService";
 import "./Styles/PerfilScreen.css";
-import usuarioIcon from "../assets/usuario.png"; // ¡Importa la imagen aquí!
+import usuarioIcon from "../assets/usuario.png";
 
 const PerfilScreen = () => {
     const [usuario, setUsuario] = useState(null);
 
     useEffect(() => {
-        const fetchUsuario = async () => {
-            try {
-                // 🚨 aquí debes poner el ID del usuario logueado (ejemplo 1)
-                const data = await getUsuarioById(1);
-                setUsuario(data);
-            } catch (error) {
-                console.error("Error al cargar usuario:", error);
-            }
-        };
-
-        fetchUsuario();
+        const usuarioGuardado = localStorage.getItem('usuario');
+        if (usuarioGuardado) {
+            setUsuario(JSON.parse(usuarioGuardado));
+        }
     }, []);
 
     if (!usuario) {
@@ -37,9 +29,8 @@ const PerfilScreen = () => {
                 </div>
                 <div className="perfil-details">
                     <p><strong>Nombre:</strong> {usuario.nombre} {usuario.apePat} {usuario.apeMat}</p>
-                    <p><strong>Departamento:</strong> {usuario.nombreDepto}</p>
                     <p><strong>Correo:</strong> {usuario.correo}</p>
-                    <p><strong>Extensión:</strong> {usuario.extension}</p>
+                    <p><strong>Usuario:</strong> {usuario.userName}</p>
                 </div>
             </div>
         </div>

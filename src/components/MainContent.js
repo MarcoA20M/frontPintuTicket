@@ -19,8 +19,20 @@ const MainContent = () => {
 
     const { addNotification } = useNotifications();
 
+    // Obtener usuario autenticado de localStorage
+    let usuarioLocal = null;
+    try {
+        const usuarioGuardado = localStorage.getItem('usuario');
+        if (usuarioGuardado) {
+            usuarioLocal = JSON.parse(usuarioGuardado);
+        }
+    } catch (e) {
+        usuarioLocal = null;
+    }
+
     const staticData = {
-        usuario: "Pedro",
+        usuario: usuarioLocal ? `${usuarioLocal.nombre}`.trim() : "",
+        correo: usuarioLocal ? usuarioLocal.correo : "",
         prioridad: "Alta"
     };
 

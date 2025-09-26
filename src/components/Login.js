@@ -1,7 +1,9 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import '../components/Styles/login.css';
 import logo from '../assets/Pintumex.png';
 import video from '../assets/video.mp4';
+import { login as authLogin } from '../services/authService';
 
 const LoginPage = ({ onLoginSuccess }) => {
   const [showLoginForm, setShowLoginForm] = useState(false);
@@ -60,12 +62,26 @@ const LoginPage = ({ onLoginSuccess }) => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Datos del formulario:', formData);
-    
-    if (onLoginSuccess) {
-      onLoginSuccess();
+    try {
+      // Llama a la API de login
+      const data = await authLogin(formData.username, formData.password);
+      // Extrae y adapta los datos del backend
+      const { givenName, sn, displayName, mail, username } = data;
+      const usuario = {
+        nombre: givenName || displayName || username,
+        apePat: sn ? sn.split(' ')[0] : '',
+        apeMat: sn ? sn.split(' ')[1] || '' : '',
+        correo: mail,
+        userName: username
+      };
+      localStorage.setItem('usuario', JSON.stringify(usuario));
+      if (onLoginSuccess) {
+        onLoginSuccess();
+      }
+    } catch (error) {
+      alert('Error en login: ' + (error.message || 'Intenta de nuevo'));
     }
   };
 

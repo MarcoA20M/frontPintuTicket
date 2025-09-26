@@ -7,7 +7,7 @@ import '../components/Styles/sidebar.css';
 import logo from '../assets/image.png';
 
 const Sidebar = () => {
-  const sidebarBg = "linear-gradient(145deg, #d10cc7ff 30%, #a50659ff 100%, #5A0F3B 90%)";
+  const sidebarBg = "linear-gradient(145deg, #dd1ad3ff 30%, #a50659ff 100%, #5A0F3B 90%)";
   const [tickets, setTickets] = useState([]);
   const usuario = "Pedro"; // Puedes cambiar esto si manejas auth
   const location = useLocation();
@@ -59,7 +59,7 @@ const Sidebar = () => {
                   <path d="M12 20h9"></path>
                   <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
                 </svg>
-                <span>Agregar nuevo ticket</span>
+                <span>Agregar un nuevo ticket</span>
               </Link>
             </li>
           </ul>
