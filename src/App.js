@@ -7,7 +7,10 @@ import MainContent from './components/MainContent';
 import TicketDetailChat from './components/TicketDetailChat';
 import TicketList from './components/TicketList';
 import Perfil from './components/PerfilScreen';
-import Ingeniero from './components/Engineer'
+import Ingeniero from './components/Engineer';
+import Admin from './components/Admin';
+import Trac from './components/tracking';
+import TrackUsr from './components/TrackingUser';
 import './components/App.css';
 import { NotificationProvider } from './contexts/NotificationContext';
 
@@ -52,10 +55,15 @@ function App() {
              <Route path="/" element={<MainContent />} />
             )}
               <Route path="/all-tickets" element={<TicketList />} />
-              <Route path="/ticket/:folio" element={<TicketDetailChat />} />
-              <Route path="/new-ticket" element={<MainContent />} />
+              <Route path="/ticket/:folio" element={<TicketDetailChat />} />             
               <Route path="/perfil" element={<Perfil />} />
-              
+              <Route path="/" element={<MainContent />} />
+              <Route path="/all-tickets" element={<TicketList />} />
+              <Route path="/ticket/:folio" element={<TicketDetailChat />} />
+              <Route path="/perfil" element={<Perfil />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/seguimiento" element={<Trac />} />
+              <Route path="/seguimientoUsr" element={<TrackUsr />} />
             </Routes>
           </div>
         </div>

@@ -62,6 +62,24 @@ const Sidebar = () => {
                 <span>Agregar un nuevo ticket</span>
               </Link>
             </li>
+            <li className="sidebar-nav-item">
+              <Link to="/seguimiento" className={`sidebar-nav-link ${location.pathname === "/seguimiento" ? "active" : ""}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 11l2-2 4 4 8-8 4 4v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4z"></path>
+                </svg>
+                <span>Seguimiento de tickets</span>
+              </Link>
+            </li>
+            <li className="sidebar-nav-item">
+              <Link to="/seguimientoUsr" className={`sidebar-nav-link ${location.pathname === "/seguimientoUsr" ? "active" : ""}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="8" r="3"></circle>
+                  <path d="M5.5 20a6.5 6.5 0 0 1 13 0"></path>
+                </svg>
+                <span>Seguimiento usuario</span>
+              </Link>
+            </li>
+            
           </ul>
         </nav>
       </div>
