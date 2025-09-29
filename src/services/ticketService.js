@@ -38,7 +38,7 @@ export const hayTicketMaestroEnProceso = async (tipoTicket) => {
 // Obtener todos los tickets
 export const getAllTickets = async () => {
     try {
-        const response = await fetch(`${BASE_URL}`);
+        const response = await fetch(`${BASE_URL}/AllTickets`);
         if (!response.ok) {
             throw new Error("Error al obtener todos los tickets");
         }

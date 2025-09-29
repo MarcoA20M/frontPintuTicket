@@ -32,12 +32,12 @@ const TrackingUser = () => {
                 </header>
 
                 <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', marginBottom: 28 }}>
-                    <div style={{ ...cardStyle, color: '#000', background: '#cfe9d9' }}>
+                    <div style={{ ...cardStyle, color: '#000', background: '#45b470ff' }}>
                         <div style={{ fontSize: 14 }}>Tickets totales</div>
                         <div style={{ fontSize: 48, fontWeight: 800 }}>1</div>
                     </div>
 
-                    <div style={{ ...cardStyle, color: '#000', background: '#f7c6cd' }}>
+                    <div style={{ ...cardStyle, color: '#000', background: '#eb8d9bff' }}>
                         <div style={{ fontSize: 14 }}>Tickets cerrados</div>
                         <div style={{ fontSize: 48, fontWeight: 800, color: '#e74c3c' }}>0</div>
                     </div>

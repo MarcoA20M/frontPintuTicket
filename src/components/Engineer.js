@@ -1,9 +1,26 @@
-import React from 'react';
+// import React from 'react';
+import React, { useEffect, useState } from "react";
 import Sidebar from './Sidebar';
 import Header from './Header';
 
 
 const Engineer = () => {
+	const [usuario, setUsuario] = useState(null);
+
+	useEffect(() => {
+		const usuarioGuardado = localStorage.getItem('usuario');
+		if (usuarioGuardado) {
+			setUsuario(JSON.parse(usuarioGuardado));
+		}
+	}, []);
+
+	if (!usuario) {
+		return (
+			<div className="perfil-container">
+				<p className="perfil-loading">Cargando información...</p>
+			</div>
+		);
+	}
 	return (
 		<div style={{ display: 'flex' }}>
 			{/* <Sidebar /> */}
@@ -78,7 +95,7 @@ const Engineer = () => {
 						transition: 'box-shadow 0.3s',
 					}}>
 						<div style={{ textAlign: 'left' }}>
-							<h1 style={{ color: '#fff', marginBottom: '8px' }}>¡Bienvenido Ingeniero!</h1>
+							<h1 style={{ color: '#fff', marginBottom: '8px' }}>¡Bienvenido Ingeniero! {usuario.nombre} </h1>
 							<p style={{ color: '#fff', marginBottom: '0' }}>Esta es tu vista personalizada.</p>
 						</div>
 						<button style={{ padding: '10px 32px', borderRadius: '8px', border: 'none', background: '#a50659ff', color: '#fff', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }} onClick={() => alert('¡Botón presionado!')}>Continuar</button>
