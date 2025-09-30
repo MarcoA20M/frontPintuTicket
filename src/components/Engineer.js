@@ -116,46 +116,63 @@ const Engineer = () => {
                         {/* Tickets urgentes */}
                         <div style={{
                             flex: 1,
-                            background: 'rgba(255,255,255,0.18)',
-                            boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+                            background: 'linear-gradient(135deg, #8f5de8 0%, #c850c0 100%)',
                             borderRadius: '18px',
-                            padding: '16px',
+                            padding: '24px',
                             maxHeight: '480px',
                             overflowY: 'auto',
-                            backdropFilter: 'blur(8px)',
-                            border: '1.5px solid rgba(255,255,255,0.35)',
-                            WebkitBackdropFilter: 'blur(8px)',
-                            transition: 'box-shadow 0.3s',
+                            boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
                         }}>
-                            <h2 style={{ color: '#ffffffff', marginTop: 0 }}>Tickets urgentes</h2>
-                            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                                <li style={{ padding: '12px 0', borderBottom: '1px solid #eee' }}><strong>Folio:</strong> 1001 - <span>Equipo caído</span></li>
-                                <li style={{ padding: '12px 0', borderBottom: '1px solid #eee' }}><strong>Folio:</strong> 1002 - <span>Red inestable</span></li>
-                                <li style={{ padding: '12px 0', borderBottom: '1px solid #eee' }}><strong>Folio:</strong> 1003 - <span>Sin acceso a sistema</span></li>
-                            </ul>
+                            <h2 style={{ color: '#fff', marginTop: 0, fontWeight: 600, fontSize: '2rem', textAlign: 'center', marginBottom: '18px' }}>Tus tickets urgentes</h2>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                                {/* Card 1 */}
+                                <div style={{ background: '#ffd1db', borderRadius: '22px', padding: '22px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                                    <div style={{ fontWeight: 700, fontSize: '1.6rem', color: '#222', marginBottom: '8px' }}>Error de softland</div>
+                                    <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '2px' }}>Guadalupe Ortega</div>
+                                    <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '12px' }}>Contaduria</div>
+                                    <button style={{ position: 'absolute', right: '24px', top: '24px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: '12px', padding: '10px 24px', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>Ver mas</button>
+                                    <div style={{ position: 'absolute', right: '24px', bottom: '18px', color: '#222', fontWeight: 500, fontSize: '1.1rem' }}>04/07/25</div>
+                                </div>
+                                {/* Card 2 */}
+                                <div style={{ background: '#ffd1db', borderRadius: '22px', padding: '22px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                                    <div style={{ fontWeight: 700, fontSize: '1.6rem', color: '#222', marginBottom: '8px' }}>Caida del servidor</div>
+                                    <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '2px' }}>Ricardo Moyado</div>
+                                    <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '12px' }}>Redes</div>
+                                    <button style={{ position: 'absolute', right: '24px', top: '24px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: '12px', padding: '10px 24px', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>Ver mas</button>
+                                    <div style={{ position: 'absolute', right: '24px', bottom: '18px', color: '#222', fontWeight: 500, fontSize: '1.1rem' }}>14/07/25</div>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Tickets asignados */}
                         <div style={{
                             flex: 1,
-                            marginLeft: '8px',
-                            background: 'rgba(255,255,255,0.18)',
-                            boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+                            background: 'linear-gradient(135deg, #8f5de8 0%, #c850c0 100%)',
                             borderRadius: '18px',
-                            padding: '16px',
+                            padding: '24px',
                             maxHeight: '480px',
                             overflowY: 'auto',
-                            backdropFilter: 'blur(8px)',
-                            border: '1.5px solid rgba(255,255,255,0.35)',
-                            WebkitBackdropFilter: 'blur(8px)',
-                            transition: 'box-shadow 0.3s',
+                            boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
                         }}>
-                            <h2 style={{ color: '#ffffffff', marginTop: 0 }}>Tickets asignados</h2>
-                            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                                <li style={{ padding: '12px 0', borderBottom: '1px solid #eee' }}><strong>Folio:</strong> 2001 - <span>Actualizar software</span></li>
-                                <li style={{ padding: '12px 0', borderBottom: '1px solid #eee' }}><strong>Folio:</strong> 2002 - <span>Revisión de impresora</span></li>
-                                <li style={{ padding: '12px 0', borderBottom: '1px solid #eee' }}><strong>Folio:</strong> 2003 - <span>Configuración de correo</span></li>
-                            </ul>
+                            <h2 style={{ color: '#fff', marginTop: 0, fontWeight: 600, fontSize: '2rem', textAlign: 'center', marginBottom: '18px' }}>Tus tickets asignados</h2>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                                {/* Card 1 */}
+                                <div style={{ background: '#ffd1db', borderRadius: '22px', padding: '22px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                                    <div style={{ fontWeight: 700, fontSize: '1.6rem', color: '#222', marginBottom: '8px' }}>Error de softland</div>
+                                    <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '2px' }}>Guadalupe Ortega</div>
+                                    <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '12px' }}>Contaduria</div>
+                                    <button style={{ position: 'absolute', right: '24px', top: '24px', background: '#3ce73cff', color: '#fff', border: 'none', borderRadius: '12px', padding: '10px 24px', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>Ver mas</button>
+                                    <div style={{ position: 'absolute', right: '24px', bottom: '18px', color: '#222', fontWeight: 500, fontSize: '1.1rem' }}>04/07/25</div>
+                                </div>
+                                {/* Card 2 */}
+                                <div style={{ background: '#ffd1db', borderRadius: '22px', padding: '22px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                                    <div style={{ fontWeight: 700, fontSize: '1.6rem', color: '#222', marginBottom: '8px' }}>Caida del servidor</div>
+                                    <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '2px' }}>Ricardo Moyado</div>
+                                    <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '12px' }}>Redes</div>
+                                    <button style={{ position: 'absolute', right: '24px', top: '24px', background: '#9de73cff', color: '#fff', border: 'none', borderRadius: '12px', padding: '10px 24px', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>Ver mas</button>
+                                    <div style={{ position: 'absolute', right: '24px', bottom: '18px', color: '#222', fontWeight: 500, fontSize: '1.1rem' }}>14/07/25</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getTicketsByUsuario } from '../services/ticketService';
 import Sidebar from './Sidebar';
 
 const cardStyle = {
@@ -23,6 +24,33 @@ const TrackingUser = () => {
         alert(`Mostrar opciones de estado para folio ${folio}`);
     };
 
+    // Estado para tickets del usuario
+    const [userTickets, setUserTickets] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        // Obtener usuario autenticado
+        const usuarioGuardado = localStorage.getItem('usuario');
+        let nombreUsuario = '';
+        if (usuarioGuardado) {
+            const usuario = JSON.parse(usuarioGuardado);
+            nombreUsuario = usuario.userName || usuario.nombre;
+        }
+        if (nombreUsuario) {
+            getTicketsByUsuario(nombreUsuario)
+                .then(tickets => setUserTickets(tickets))
+                .catch(() => setUserTickets([]))
+                .finally(() => setLoading(false));
+        } else {
+            setUserTickets([]);
+            setLoading(false);
+        }
+    }, []);
+
+    // Calcular totales
+    const totalTickets = userTickets.length;
+    const totalCerrados = userTickets.filter(t => t.estatus && t.estatus.toLowerCase() === 'cerrado').length;
+
     return (
         <div style={{ display: 'flex', minHeight: '100vh' }}>
             <div style={{ flex: 1, padding: 28, color: '#fff' }}>
@@ -31,15 +59,15 @@ const TrackingUser = () => {
                     </div>
                 </header>
 
-                <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', marginBottom: 28 }}>
-                    <div style={{ ...cardStyle, color: '#000', background: '#45b470ff' }}>
+                <div className='' style={{ display: 'flex', gap: 20, alignItems: 'flex-start', marginBottom: 28 }}>
+                    <div style={{ ...cardStyle, color: '#000', background: '#267ac8ff' }}>
                         <div style={{ fontSize: 14 }}>Tickets totales</div>
-                        <div style={{ fontSize: 48, fontWeight: 800 }}>1</div>
+                        <div style={{ fontSize: 48, fontWeight: 800 }}>{loading ? '...' : totalTickets}</div>
                     </div>
 
                     <div style={{ ...cardStyle, color: '#000', background: '#eb8d9bff' }}>
                         <div style={{ fontSize: 14 }}>Tickets cerrados</div>
-                        <div style={{ fontSize: 48, fontWeight: 800, color: '#e74c3c' }}>0</div>
+                        <div style={{ fontSize: 48, fontWeight: 800, color: '#e74c3c' }}>{loading ? '...' : totalCerrados}</div>
                     </div>
 
                     <div style={{ marginLeft: 'auto' }}>
