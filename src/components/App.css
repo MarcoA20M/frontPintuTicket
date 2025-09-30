@@ -12,11 +12,11 @@
     --shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
-* {
+/* * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-}
+} */
 
 body {
     font-family: 'Roboto', sans-serif;

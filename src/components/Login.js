@@ -4,6 +4,7 @@ import '../components/Styles/login.css';
 import logo from '../assets/Pintumex.png';
 import video from '../assets/video.mp4';
 import { login as authLogin } from '../services/authService';
+import AlertModal from './AlertModal';
 
 const LoginPage = ({ onLoginSuccess }) => {
   const [showLoginForm, setShowLoginForm] = useState(false);
@@ -65,24 +66,43 @@ const LoginPage = ({ onLoginSuccess }) => {
     try {
       
       const data = await authLogin(formData.username, formData.password);
-      // Extrae y adapta los datos del backend
-      const { givenName, sn, displayName, mail, username, accessToken } = data;
-      const usuario = {
-        nombre: givenName || displayName || username,
-        apePat: sn ? sn.split(' ')[0] : '',
-        apeMat: sn ? sn.split(' ')[1] || '' : '',
-        correo: mail,
-        userName: username,
-        token: accessToken
-      };
+      // Soportar dos formatos de respuesta:
+      // 1) Respuesta real del backend con campos { givenName, sn, displayName, mail, username, accessToken }
+      // 2) Respuesta maestra de prueba con { user: { ... }, token }
+      let usuario = null;
+      if (data && data.user) {
+        const u = data.user;
+        usuario = {
+          nombre: u.name || u.nombre || u.displayName || u.username || u.userName || '',
+          apePat: u.apePat || u.ape_paterno || '',
+          apeMat: u.apeMat || u.ape_materno || '',
+          correo: u.email || u.mail || u.correo || '',
+          userName: u.username || u.userName || '',
+          token: data.token || data.accessToken || data.access_token || '',
+          role: u.role || u.rol || ''
+        };
+      } else {
+        const { givenName, sn, displayName, mail, username, accessToken } = data || {};
+        usuario = {
+          nombre: givenName || displayName || username || '',
+          apePat: sn ? sn.split(' ')[0] : '',
+          apeMat: sn ? sn.split(' ')[1] || '' : '',
+          correo: mail || '',
+          userName: username || '',
+          token: accessToken || ''
+        };
+      }
       localStorage.setItem('usuario', JSON.stringify(usuario));
       if (onLoginSuccess) {
         onLoginSuccess();
       }
     } catch (error) {
-      alert('Error en login: ' + (error.message || 'Intenta de nuevo'));
+      const msg = error && error.message ? error.message : 'Intenta de nuevo';
+      setModal({ visible: true, title: 'Error en login', message: msg });
     }
   };
+
+  const [modal, setModal] = useState({ visible: false, title: '', message: '' });
 
   // function getUserRoleFromToken(token) {
   //   if (!token) return null;
@@ -188,6 +208,12 @@ const LoginPage = ({ onLoginSuccess }) => {
           </form> 
         </main>
       )}
+      <AlertModal
+        visible={modal.visible}
+        title={modal.title}
+        message={modal.message}
+        onClose={() => setModal({ visible: false, title: '', message: '' })}
+      />
     </div>
   );
 };
