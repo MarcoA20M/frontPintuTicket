@@ -79,3 +79,32 @@ export const getTicketById = async (id) => {
         throw error;
     }
 };
+
+// Actualizar estatus de un ticket
+// --- NUEVO ---
+// Actualizar campos de un ticket (prioridad, ingeniero u otros) por id o folio
+export const updateTicket = async (ticketData) => {
+    // ticketData debe contener al menos el identificador (id o folio) y los campos a actualizar
+    try {
+        const response = await fetch(`${BASE_URL}/updateTicket`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(ticketData),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || 'Error al actualizar el ticket');
+        }
+
+        const updatedTicket = await response.json();
+        return updatedTicket;
+    } catch (error) {
+        console.error('Error en updateTicket:', error);
+        throw error;
+    }
+};
+
+// Ejemplo de uso (estilo similar a createTicket):
+// await updateTicket({ id: 123, prioridad: 'Media', ingeniero: 'Juan Perez' });
+

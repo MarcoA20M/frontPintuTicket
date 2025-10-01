@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Sidebar from './Sidebar';
 import Header from './Header';
+import { getAllTickets } from '../services/ticketService';
 
 
 const Engineer = () => {
@@ -13,6 +14,20 @@ const Engineer = () => {
         }
     }, []);
 
+    // tickets del backend
+    const [tickets, setTickets] = useState([]);
+    useEffect(() => {
+        const fetchTickets = async () => {
+            try {
+                const all = await getAllTickets();
+                setTickets(all || []);
+            } catch (err) {
+                console.error('No se pudieron cargar tickets en Engineer:', err);
+            }
+        };
+        fetchTickets();
+    }, []);
+
     if (!usuario) {
         return (
             <div className="perfil-container">
@@ -22,17 +37,31 @@ const Engineer = () => {
     }
 
     return (
-        <div className="perfil-container" style={{ display: 'flex', width: '1000%', justifyContent: 'center', alignItems: 'flex-start', gap: '30px' }}>
+        <div className="perfil-container" style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'flex-start', gap: '30px' }}>
             {/* Sidebar could be enabled here */}
             {/* <Sidebar /> */}
 
-            <div >
+            <div>
                 {/* <Header /> */}
 
-                <div >
+                <div>
                     {/* Cards informativas */}
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '110px', marginBottom: '32px', flexWrap: 'wrap' }}>
-                        {/* Card: Tickets asignados */}
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginBottom: '32px', flexWrap: 'wrap' }}>
+                        <div style={{
+                            background: 'rgba(104, 190, 53, 1)',
+                            boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+                            borderRadius: '18px',
+                            padding: '20px',
+                            minWidth: '300px',
+                            backdropFilter: 'blur(8px)',
+                            border: '1px solid rgba(255,255,255,0.35)',
+                            WebkitBackdropFilter: 'blur(8px)',
+                            transition: 'box-shadow 0.3s',
+                            }}>
+                            <h3 style={{ margin: 0, color: '#ffffffff' }}>Tickets asignados</h3>
+                            <p style={{ fontSize: '2rem', margin: '12px 0 0 0' }}>{tickets.filter(t => usuario && t.ingeniero === usuario.nombre).length}</p>
+                        </div>
+
                         <div style={{
                             background: 'rgba(104, 179, 61, 1)',
                             boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
@@ -44,27 +73,10 @@ const Engineer = () => {
                             WebkitBackdropFilter: 'blur(8px)',
                             transition: 'box-shadow 0.3s',
                         }}>
-                            <h3 style={{ margin: 0, color: '#ffffffff' }}>Tickets asignados</h3>
-                            <p style={{ fontSize: '2rem', margin: '12px 0 0 0' }}>12</p>
-                        </div>
-
-                        {/* Card: En proceso */}
-                        <div style={{
-                            background: 'rgba(104, 179, 61, 1)',
-                            boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
-                            borderRadius: '18px',
-                            padding: '24px',
-                            minWidth: '300px',
-                            backdropFilter: 'blur(8px)',
-                            border: '1.5px solid rgba(255,255,255,0.35)',
-                            WebkitBackdropFilter: 'blur(8px)',
-                            transition: 'box-shadow 0.3s',
-                        }}>
                             <h3 style={{ margin: 0, color: '#ffffffff' }}>En proceso</h3>
-                            <p style={{ fontSize: '2rem', margin: '12px 0 0 0' }}>5</p>
+                            <p style={{ fontSize: '2rem', margin: '12px 0 0 0' }}>{tickets.filter(t => usuario && t.ingeniero === usuario.nombre && t.estatus === 'En proceso').length}</p>
                         </div>
 
-                        {/* Card: Cerrados */}
                         <div style={{
                             background: 'rgba(104, 179, 61, 1)',
                             boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
@@ -77,7 +89,7 @@ const Engineer = () => {
                             transition: 'box-shadow 0.3s',
                         }}>
                             <h3 style={{ margin: 0, color: '#ffffffff' }}>Cerrados</h3>
-                            <p style={{ fontSize: '2rem', margin: '12px 0 0 0' }}>8</p>
+                            <p style={{ fontSize: '2rem', margin: '12px 0 0 0' }}>{tickets.filter(t => usuario && t.ingeniero === usuario.nombre && (t.estatus === 'Cerrado' || t.estatus === 'Cerrados')).length}</p>
                         </div>
                     </div>
 
@@ -93,7 +105,7 @@ const Engineer = () => {
                         flexDirection: 'row',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        gap: '24px',
+                        gap: '20px',
                         backdropFilter: 'blur(8px)',
                         border: '1.5px solid rgba(255,255,255,0.35)',
                         WebkitBackdropFilter: 'blur(8px)',
@@ -125,22 +137,15 @@ const Engineer = () => {
                         }}>
                             <h2 style={{ color: '#fff', marginTop: 0, fontWeight: 600, fontSize: '2rem', textAlign: 'center', marginBottom: '18px' }}>Tus tickets urgentes</h2>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                                {/* Card 1 */}
-                                <div style={{ background: '#ffd1db', borderRadius: '22px', padding: '22px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                                    <div style={{ fontWeight: 700, fontSize: '1.6rem', color: '#222', marginBottom: '8px' }}>Error de softland</div>
-                                    <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '2px' }}>Guadalupe Ortega</div>
-                                    <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '12px' }}>Contaduria</div>
-                                    <button style={{ position: 'absolute', right: '24px', top: '24px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: '12px', padding: '10px 24px', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>Ver mas</button>
-                                    <div style={{ position: 'absolute', right: '24px', bottom: '18px', color: '#222', fontWeight: 500, fontSize: '1.1rem' }}>04/07/25</div>
-                                </div>
-                                {/* Card 2 */}
-                                <div style={{ background: '#ffd1db', borderRadius: '22px', padding: '22px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                                    <div style={{ fontWeight: 700, fontSize: '1.6rem', color: '#222', marginBottom: '8px' }}>Caida del servidor</div>
-                                    <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '2px' }}>Ricardo Moyado</div>
-                                    <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '12px' }}>Redes</div>
-                                    <button style={{ position: 'absolute', right: '24px', top: '24px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: '12px', padding: '10px 24px', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>Ver mas</button>
-                                    <div style={{ position: 'absolute', right: '24px', bottom: '18px', color: '#222', fontWeight: 500, fontSize: '1.1rem' }}>14/07/25</div>
-                                </div>
+                                {tickets.filter(t => usuario && t.ingeniero === usuario.nombre && t.prioridad === 'Alta').map((ticket) => (
+                                    <div key={ticket.folio} style={{ background: '#ffd1db', borderRadius: '22px', padding: '22px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                                        <div style={{ fontWeight: 700, fontSize: '1.6rem', color: '#222', marginBottom: '8px' }}>{ticket.tipo_ticket}</div>
+                                        <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '2px' }}>{ticket.usuario}</div>
+                                        <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '12px' }}>{ticket.area ?? ticket.departamento ?? ''}</div>
+                                        <button style={{ position: 'absolute', right: '24px', top: '24px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: '12px', padding: '10px 24px', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>Ver mas</button>
+                                        <div style={{ position: 'absolute', right: '24px', bottom: '18px', color: '#222', fontWeight: 500, fontSize: '1.1rem' }}>{new Date(ticket.fechaCreacion).toLocaleDateString()}</div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
 
@@ -156,22 +161,15 @@ const Engineer = () => {
                         }}>
                             <h2 style={{ color: '#fff', marginTop: 0, fontWeight: 600, fontSize: '2rem', textAlign: 'center', marginBottom: '18px' }}>Tus tickets asignados</h2>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                                {/* Card 1 */}
-                                <div style={{ background: '#ffd1db', borderRadius: '22px', padding: '22px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                                    <div style={{ fontWeight: 700, fontSize: '1.6rem', color: '#222', marginBottom: '8px' }}>Error de softland</div>
-                                    <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '2px' }}>Guadalupe Ortega</div>
-                                    <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '12px' }}>Contaduria</div>
-                                    <button style={{ position: 'absolute', right: '24px', top: '24px', background: '#3ce73cff', color: '#fff', border: 'none', borderRadius: '12px', padding: '10px 24px', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>Ver mas</button>
-                                    <div style={{ position: 'absolute', right: '24px', bottom: '18px', color: '#222', fontWeight: 500, fontSize: '1.1rem' }}>04/07/25</div>
-                                </div>
-                                {/* Card 2 */}
-                                <div style={{ background: '#ffd1db', borderRadius: '22px', padding: '22px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                                    <div style={{ fontWeight: 700, fontSize: '1.6rem', color: '#222', marginBottom: '8px' }}>Caida del servidor</div>
-                                    <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '2px' }}>Ricardo Moyado</div>
-                                    <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '12px' }}>Redes</div>
-                                    <button style={{ position: 'absolute', right: '24px', top: '24px', background: '#9de73cff', color: '#fff', border: 'none', borderRadius: '12px', padding: '10px 24px', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>Ver mas</button>
-                                    <div style={{ position: 'absolute', right: '24px', bottom: '18px', color: '#222', fontWeight: 500, fontSize: '1.1rem' }}>14/07/25</div>
-                                </div>
+                                {tickets.filter(t => usuario && t.ingeniero === usuario.nombre).map((ticket) => (
+                                    <div key={ticket.folio} style={{ background: '#ffd1db', borderRadius: '22px', padding: '22px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                                        <div style={{ fontWeight: 700, fontSize: '1.6rem', color: '#222', marginBottom: '8px' }}>{ticket.tipo_ticket}</div>
+                                        <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '2px' }}>{ticket.usuario}</div>
+                                        <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '12px' }}>{ticket.area ?? ticket.departamento ?? ''}</div>
+                                        <button style={{ position: 'absolute', right: '24px', top: '24px', background: '#3ce73cff', color: '#fff', border: 'none', borderRadius: '12px', padding: '10px 24px', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>Ver mas</button>
+                                        <div style={{ position: 'absolute', right: '24px', bottom: '18px', color: '#222', fontWeight: 500, fontSize: '1.1rem' }}>{new Date(ticket.fechaCreacion).toLocaleDateString()}</div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
