@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { getAllTipoTickets } from "../services/tipoTicketService";
-import { createTicket, hayTicketMaestroEnProceso } from "../services/ticketService";
+// import { createTicket, hayTicketMaestroEnProceso } from "../services/ticketService";
+import { createTicketCreate } from '../services/ticketService';
 import { useNotifications } from '../contexts/NotificationContext';
 import '../components/Styles/mainContent.css';
 
@@ -106,19 +107,19 @@ const MainContent = () => {
         };
 
         try {
-            const maestroActivo = await hayTicketMaestroEnProceso(requestBody.tipo_ticket);
-            if (maestroActivo) {
-                const continuar = window.confirm("Ya hay un Ticket Maestro en proceso para este tipo de ticket. ¿Deseas continuar y crear tu ticket?");
-                if (!continuar) {
-                    setMessages(prev => [...prev, { text: "Se canceló la creación del ticket.", sender: "system" }]);
-                    setTicketSeleccionado(null);
-                    setSubTipoSeleccionado(null);
-                    setShowBackButton(false);
-                    return;
-                }
-            }
+            // const maestroActivo = await hayTicketMaestroEnProceso(requestBody.tipo_ticket);
+            // if (maestroActivo) {
+            //     const continuar = window.confirm("Ya hay un Ticket Maestro en proceso para este tipo de ticket. ¿Deseas continuar y crear tu ticket?");
+            //     if (!continuar) {
+            //         setMessages(prev => [...prev, { text: "Se canceló la creación del ticket.", sender: "system" }]);
+            //         setTicketSeleccionado(null);
+            //         setSubTipoSeleccionado(null);
+            //         setShowBackButton(false);
+            //         return;
+            //     }
+            // }
 
-            const createdTicket = await createTicket(requestBody);
+            const createdTicket = await createTicketCreate(requestBody);
             addNotification(
                 createdTicket.folio,
                 `Tu nuevo ticket ha sido creado y asignado al ingeniero ${createdTicket.ingeniero}.`
@@ -134,7 +135,9 @@ const MainContent = () => {
             setShowBackButton(false);
         } catch (error) {
             console.error("Error al enviar el ticket:", error);
-            setMessages(prev => [...prev, { text: "❌ Error al enviar el ticket. Revisa el servidor.", sender: "system" }]);
+            // Mostrar el mensaje de error devuelto por el servicio cuando sea posible
+            const detalle = error && error.message ? error.message : 'Error desconocido al enviar el ticket.';
+            setMessages(prev => [...prev, { text: `❌ Error al enviar el ticket: ${detalle}`, sender: "system" }]);
         }
     };
 

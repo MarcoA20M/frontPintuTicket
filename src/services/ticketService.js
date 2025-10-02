@@ -1,23 +1,61 @@
 const BASE_URL = "http://localhost:8080/tickets";
 
-// Crear un ticket normal
-export const createTicket = async (ticketData) => {
+// // Crear un ticket (POST a /tickets)
+// export const createTicket = async (ticketData) => {
+//     try {
+//         console.log('createTicket: payload ->', ticketData);
+//         const response = await fetch(`${BASE_URL}`, {
+//             method: "POST",
+//             headers: { "Content-Type": "application/json" },
+//             body: JSON.stringify(ticketData),
+//         });
+//         if (!response.ok) {
+//             let errorText = '';
+//             try {
+//                 const errorData = await response.json();
+//                 errorText = errorData.message || JSON.stringify(errorData);
+//             } catch (e) {
+//                 errorText = await response.text().catch(() => 'No body');
+//             }
+//             console.error(`createTicket: response not ok (status=${response.status}) ->`, errorText);
+//             throw new Error(errorText || "Error al crear el ticket");
+//         }
+
+//         const createdTicket = await response.json();
+//         console.log('createTicket: success ->', createdTicket);
+//         return createdTicket; // Devuelve el ticket creado con su folio, etc.
+//     } catch (error) {
+//         console.error("Error en ticketService:", error);
+//         throw error;
+//     }
+// };
+
+// Alternativa: crear ticket usando endpoint /tickets/createTicket
+export const createTicketCreate = async (ticketData) => {
     try {
+        console.log('createTicketCreate: payload ->', ticketData);
         const response = await fetch(`${BASE_URL}/createTicket`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(ticketData),
         });
-
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || "Error al crear el ticket");
+            let errorText = '';
+            try {
+                const errorData = await response.json();
+                errorText = errorData.message || JSON.stringify(errorData);
+            } catch (e) {
+                errorText = await response.text().catch(() => 'No body');
+            }
+            console.error(`createTicketCreate: response not ok (status=${response.status}) ->`, errorText);
+            throw new Error(errorText || "Error al crear el ticket (create)");
         }
 
         const createdTicket = await response.json();
-        return createdTicket; // Devuelve el ticket creado con su folio, etc.
+        console.log('createTicketCreate: success ->', createdTicket);
+        return createdTicket;
     } catch (error) {
-        console.error("Error en ticketService:", error);
+        console.error("Error en ticketService (createTicketCreate):", error);
         throw error;
     }
 };
@@ -68,9 +106,10 @@ export const getTicketsByUsuario = async (nombreUsuario) => {
 
 
 // Obtener ticket por ID
-export const getTicketById = async (id) => {
+// Obtener ticket por folio usando query param ?folio=
+export const getTicketById = async (folio) => {
     try {
-        const response = await fetch(`${BASE_URL}/${id}`);
+        const response = await fetch(`${BASE_URL}/TicketById?folio=${encodeURIComponent(folio)}`);
         if (!response.ok) throw new Error("Ticket no encontrado");
         const ticket = await response.json();
         return ticket;
