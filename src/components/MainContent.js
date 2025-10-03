@@ -3,6 +3,7 @@ import { getAllTipoTickets } from "../services/tipoTicketService";
 // import { createTicket, hayTicketMaestroEnProceso } from "../services/ticketService";
 import { createTicketCreate } from '../services/ticketService';
 import { useNotifications } from '../contexts/NotificationContext';
+import io from 'socket.io-client';
 import '../components/Styles/mainContent.css';
 
 const MainContent = () => {
@@ -49,6 +50,24 @@ const MainContent = () => {
             }
         };
         fetchTipos();
+        // Conectar socket para recibir notificaciones de asignación en tiempo real
+        const socket = io('http://localhost:8080');
+        socket.on('connect', () => console.log('MainContent socket conectado', socket.id));
+        socket.on('ticketAssigned', (payload) => {
+            try {
+                // si el mensaje es para este usuario autenticado, notificar
+                const currentUser = usuarioLocal ? (usuarioLocal.nombre || usuarioLocal.usuario || usuarioLocal.email) : null;
+                if (currentUser && payload && payload.usuario && String(payload.usuario).trim() === String(currentUser).trim()) {
+                    addNotification(payload.folio, `Tu ticket ${payload.folio} fue asignado al ingeniero ${payload.ingeniero}.`);
+                    setMessages(prev => [...prev, { text: `🔔 Tu ticket ${payload.folio} fue asignado al ingeniero ${payload.ingeniero} y está en estatus ${payload.estatus}.`, sender: 'system' }]);
+                }
+            } catch (e) {
+                console.error('Error manejando ticketAssigned en MainContent', e);
+            }
+        });
+        return () => {
+            socket.disconnect();
+        };
     }, []);
 
     const handleTipoClick = (tipo) => {

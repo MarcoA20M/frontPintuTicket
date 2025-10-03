@@ -7,6 +7,7 @@ import { getAllTipoTickets } from '../services/tipoTicketService';
 import { getAllTickets, updateTicket } from '../services/ticketService';
 import { useNotifications } from '../contexts/NotificationContext';
 import { getAllEstatus } from '../services/estatus';
+import { getAllPrioridad } from '../services/prioridad';
 
 const pill = {
     background: 'rgba(255,255,255,0.12)',
@@ -47,9 +48,18 @@ const Tracking = () => {
         socketRef.current.on('ticketCreated', (newTicket) => {
             console.log('ticketCreated recibido:', newTicket);
             setTicketActual(newTicket);
-            // rellenar selects con los valores actuales
+            // rellenar selects con los valores actuales (mapear prioridad a id si es necesario)
             setIngenieroEncargado(newTicket.ingeniero || '');
-            setPrioridadSeleccionada(newTicket.prioridad || '');
+            if (newTicket.id_prioridad) {
+                setPrioridadSeleccionada(String(newTicket.id_prioridad));
+            } else if (newTicket.prioridad) {
+                // intentar mapear por nombre usando prioridades ya cargadas
+                const matched = (prioridades || []).find(p => (p.nombre || '').toLowerCase() === String(newTicket.prioridad).toLowerCase());
+                if (matched) setPrioridadSeleccionada(String(matched.id_prioridad ?? matched.id));
+                else setPrioridadSeleccionada('');
+            } else {
+                setPrioridadSeleccionada('');
+            }
             setTipoSeleccionado(newTicket.tipo_ticket || '');
             setEstatusSeleccionado(newTicket.estatus || 'Abierto');
         });
@@ -57,10 +67,23 @@ const Tracking = () => {
         // también actualizar cuando backend confirme actualización
         socketRef.current.on('ticketUpdated', (updated) => {
             console.log('ticketUpdated recibido:', updated);
-            // actualizar el ticketActual solo si coincide con el que está seleccionado (evitar closures stale usando función)
+            // si coincide con el seleccionado, reemplazar y actualizar selects
             setTicketActual(prev => {
                 if (!prev) return prev;
                 if (updated.folio === prev.folio || updated.id === prev.id) {
+                    // actualizar selects también
+                    setIngenieroEncargado(updated.ingeniero || '');
+                    if (updated.id_prioridad) {
+                        setPrioridadSeleccionada(String(updated.id_prioridad));
+                    } else if (updated.prioridad) {
+                        const matched = (prioridades || []).find(p => (p.nombre || '').toLowerCase() === String(updated.prioridad).toLowerCase());
+                        if (matched) setPrioridadSeleccionada(String(matched.id_prioridad ?? matched.id));
+                        else setPrioridadSeleccionada('');
+                    } else {
+                        setPrioridadSeleccionada('');
+                    }
+                    setTipoSeleccionado(updated.tipo_ticket || '');
+                    setEstatusSeleccionado(updated.estatus || 'Abierto');
                     return updated;
                 }
                 return prev;
@@ -76,23 +99,48 @@ const Tracking = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [ing, t, all, est] = await Promise.all([getAllIngenieros(), getAllTipoTickets(), getAllTickets(), getAllEstatus()]);
+                const [ing, t, all, est, prio] = await Promise.all([getAllIngenieros(), getAllTipoTickets(), getAllTickets(), getAllEstatus(), getAllPrioridad()]);
                 setIngenieros(ing || []);
                 setTipos(t || []);
                 setTickets(all || []);
                 setEstatusList(est || []);
-                // obtener prioridades únicas desde tickets existentes
-                const uniqPrio = Array.from(new Set((all || []).map(x => x.prioridad).filter(Boolean)));
-                setPrioridades(uniqPrio.length ? uniqPrio : ['Alta','Media','Baja']);
+
+                // prioridades: preferir las que trae el endpoint; si no hay, derivar desde tickets
+                if (prio && prio.length > 0) {
+                    // normalizar objetos a forma { id_prioridad, nombre }
+                    const normalized = prio.map(p => ({ id_prioridad: p.id_prioridad ?? p.id ?? p.idPrioridad ?? p.id, nombre: p.nombre ?? p.prioridad ?? p.label ?? String(p) }));
+                    // guardar como arreglo de objetos; para el select usaremos strings en value
+                    setPrioridades(normalized);
+                } else {
+                    const uniqPrio = Array.from(new Set((all || []).map(x => x.prioridad).filter(Boolean)));
+                    const fallback = uniqPrio.length ? uniqPrio.map((name, idx) => ({ id_prioridad: idx + 1, nombre: name })) : [{ id_prioridad: 1, nombre: 'Alta' }, { id_prioridad: 2, nombre: 'Media' }, { id_prioridad: 3, nombre: 'Baja' }];
+                    setPrioridades(fallback);
+                }
 
                 // seleccionar un ticket por defecto para mostrar: preferir uno abierto
                 if ((all || []).length > 0) {
                     const firstOpen = (all || []).find(tt => tt.estatus === 'Abierto' || tt.estatus === 'abierto');
-                    setTicketActual(firstOpen || all[0]);
-                    // rellenar selects con los valores actuales del ticket seleccionado
                     const chosen = firstOpen || all[0];
+                    setTicketActual(chosen);
+                    // rellenar selects con los valores actuales del ticket seleccionado
                     setIngenieroEncargado(chosen.ingeniero || '');
-                    setPrioridadSeleccionada(chosen.prioridad || '');
+                    // si el ticket trae id_prioridad usarlo, si solo trae texto intentar mapear al id
+                    if (chosen.id_prioridad) {
+                        setPrioridadSeleccionada(String(chosen.id_prioridad));
+                    } else if (chosen.prioridad) {
+                        const matched = (prio && prio.length ? prio : []).find(p => (p.nombre || p.prioridad || '').toLowerCase() === String(chosen.prioridad).toLowerCase());
+                        if (matched) setPrioridadSeleccionada(String(matched.id_prioridad ?? matched.id));
+                        // else {
+                        //     // intentar con fallback list
+                        //     const fb = ((uniqPrio && uniqPrio.length) ? uniqPrio : []).find(n => n.toLowerCase() === String(chosen.prioridad).toLowerCase());
+                        //     if (fb) {
+                        //         const idx = ((uniqPrio || []).indexOf(fb));
+                        //         setPrioridadSeleccionada(idx >= 0 ? idx + 1 : '');
+                        //     }
+                        // }
+                    } else {
+                        setPrioridadSeleccionada('');
+                    }
                     setTipoSeleccionado(chosen.tipo_ticket || '');
                     setEstatusSeleccionado(chosen.estatus || 'Abierto');
                 }
@@ -111,7 +159,9 @@ const Tracking = () => {
             id: ticketActual.id ?? ticketActual.folio,
             folio: ticketActual.folio,
             ingeniero: ingenieroEncargado,
-            prioridad: prioridadSeleccionada,
+            // prioridad: nombre legible (opcional), id_prioridad: número si está seleccionado
+            prioridad: (prioridades.find(p => String(p.id_prioridad) === String(prioridadSeleccionada)) || {}).nombre || (typeof prioridadSeleccionada === 'string' ? prioridadSeleccionada : undefined),
+            id_prioridad: prioridadSeleccionada ? Number(prioridadSeleccionada) : undefined,
             tipo_ticket: tipoSeleccionado,
             estatus: estatusSeleccionado,
         };
@@ -123,7 +173,18 @@ const Tracking = () => {
 
             // emitir al servidor para que lo notifique a otros clientes si aplica
             if (socketRef.current && socketRef.current.connected) {
+                // evento legacy para asignación
                 socketRef.current.emit('assignTicket', { folio: updated.folio, ingeniero: updated.ingeniero });
+                // emitir un evento más descriptivo que el servidor puede reenviar al usuario solicitante
+                const notifyPayload = {
+                    folio: updated.folio,
+                    usuario: updated.usuario ?? ticketActual?.usuario ?? updated.user ?? updated.usuario_nombre,
+                    ingeniero: updated.ingeniero,
+                    estatus: updated.estatus,
+                    id_prioridad: updated.id_prioridad ?? payload.id_prioridad
+                };
+                console.log('Emitiendo ticketAssigned:', notifyPayload);
+                socketRef.current.emit('ticketAssigned', notifyPayload);
             }
 
             setTicketActual(updated);
@@ -161,7 +222,7 @@ const Tracking = () => {
                             <select value={prioridadSeleccionada} onChange={(e) => setPrioridadSeleccionada(e.target.value)} style={{ padding: '10px', borderRadius: 8, color: '#000000ff' }}>
                                 <option value="">Sin prioridad</option>
                                 {prioridades.map(p => (
-                                    <option style={{color:"black"}} key={p} value={p}>{p}</option>
+                                    <option style={{color:"black"}} key={p.id_prioridad ?? p.id ?? p.nombre} value={String(p.id_prioridad ?? p.id ?? p.nombre)}>{p.nombre ?? p.prioridad ?? p}</option>
                                 ))}
                             </select>
 
@@ -187,7 +248,6 @@ const Tracking = () => {
                                     </>
                                 )}
                             </select>
-
                             <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
                                 <button onClick={handleGuardar} style={{ background: '#2ecc71', border: 'none', padding: '12px 16px', borderRadius: 8 }}>Guardar</button>
                                 <button onClick={() => { setTicketActual(null); }} style={{ background: '#e74c3c', border: 'none', padding: '12px 16px', borderRadius: 8 }}>Limpiar</button>
