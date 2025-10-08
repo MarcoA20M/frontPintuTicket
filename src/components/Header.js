@@ -25,6 +25,24 @@ const Header = () => {
         }
     };
 
+    const handleOptions = () => {
+        // Placeholder: navegar a perfil u otra ruta de opciones
+        navigate('/perfil');
+    };
+
+    const handleLogout = () => {
+        // Limpiar sesión local y recargar para volver a la pantalla de login
+        localStorage.removeItem('usuario');
+        // opcional: limpiar otras llaves relacionadas con sesión
+        try {
+            // navegar a raíz y forzar recarga
+            navigate('/');
+        } catch (e) {
+            // no bloquear
+        }
+        window.location.reload();
+    };
+
     return (
         <header className="header">
             <div style={{ marginRight: 'auto' }}>
@@ -86,24 +104,32 @@ const Header = () => {
                 )}
             </div>
 
-            <button onClick={handleShowPerfil} className="header-link">
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="header-icon feather feather-user"
-                >
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-                <span>Perfil</span>
-            </button>
+            <div className="dropdown">
+                <button className="header-link dropdown-toggle" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="header-icon feather feather-user"
+                    >
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <span>Perfil</span>
+                </button>
+                <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
+                    <li><button className="dropdown-item" onClick={handleShowPerfil}>Perfil</button></li>
+                    <li><button className="dropdown-item" onClick={handleOptions}>Opciones</button></li>
+                    <li><hr className="dropdown-divider" /></li>
+                    <li><button className="dropdown-item text-danger" onClick={handleLogout}>Salir</button></li>
+                </ul>
+            </div>
         </header>
     );
 };

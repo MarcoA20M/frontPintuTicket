@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Sidebar from './Sidebar';
 import Header from './Header';
+import './Styles/engineer.css';
 import { getAllTickets } from '../services/ticketService';
 
 
@@ -46,50 +47,20 @@ const Engineer = () => {
 
                 <div>
                     {/* Cards informativas */}
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginBottom: '32px', flexWrap: 'wrap' }}>
-                        <div style={{
-                            background: 'rgba(104, 190, 53, 1)',
-                            boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
-                            borderRadius: '18px',
-                            padding: '20px',
-                            minWidth: '300px',
-                            backdropFilter: 'blur(8px)',
-                            border: '1px solid rgba(255,255,255,0.35)',
-                            WebkitBackdropFilter: 'blur(8px)',
-                            transition: 'box-shadow 0.3s',
-                            }}>
-                            <h3 style={{ margin: 0, color: '#ffffffff' }}>Tickets asignados</h3>
-                            <p style={{ fontSize: '2rem', margin: '12px 0 0 0' }}>{tickets.filter(t => usuario && t.ingeniero === usuario.nombre).length}</p>
+                    <div className="engineer-cards" style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginBottom: '32px', flexWrap: 'wrap' }}>
+                        <div className="engineer-card green">
+                            <h3>Tickets asignados</h3>
+                            <p>{tickets.filter(t => usuario && t.ingeniero === usuario.nombre).length}</p>
                         </div>
 
-                        <div style={{
-                            background: 'rgba(104, 179, 61, 1)',
-                            boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
-                            borderRadius: '18px',
-                            padding: '20px',
-                            minWidth: '300px',
-                            backdropFilter: 'blur(8px)',
-                            border: '1.5px solid rgba(255,255,255,0.35)',
-                            WebkitBackdropFilter: 'blur(8px)',
-                            transition: 'box-shadow 0.3s',
-                        }}>
-                            <h3 style={{ margin: 0, color: '#ffffffff' }}>En proceso</h3>
-                            <p style={{ fontSize: '2rem', margin: '12px 0 0 0' }}>{tickets.filter(t => usuario && t.ingeniero === usuario.nombre && t.estatus === 'En proceso').length}</p>
+                        <div className="engineer-card green-2">
+                            <h3>En proceso</h3>
+                            <p>{tickets.filter(t => usuario && t.ingeniero === usuario.nombre && t.estatus === 'En proceso').length}</p>
                         </div>
 
-                        <div style={{
-                            background: 'rgba(104, 179, 61, 1)',
-                            boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
-                            borderRadius: '18px',
-                            padding: '24px',
-                            minWidth: '300px',
-                            backdropFilter: 'blur(8px)',
-                            border: '1.5px solid rgba(255,255,255,0.35)',
-                            WebkitBackdropFilter: 'blur(8px)',
-                            transition: 'box-shadow 0.3s',
-                        }}>
-                            <h3 style={{ margin: 0, color: '#ffffffff' }}>Cerrados</h3>
-                            <p style={{ fontSize: '2rem', margin: '12px 0 0 0' }}>{tickets.filter(t => usuario && t.ingeniero === usuario.nombre && (t.estatus === 'Cerrado' || t.estatus === 'Cerrados')).length}</p>
+                        <div className="engineer-card green-2" style={{ padding: '24px' }}>
+                            <h3>Cerrados</h3>
+                            <p>{tickets.filter(t => usuario && t.ingeniero === usuario.nombre && (t.estatus === 'Cerrado' || t.estatus === 'Cerrados')).length}</p>
                         </div>
                     </div>
 

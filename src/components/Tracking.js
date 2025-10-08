@@ -9,12 +9,7 @@ import { useNotifications } from '../contexts/NotificationContext';
 import { getAllEstatus } from '../services/estatus';
 import { getAllPrioridad } from '../services/prioridad';
 
-const pill = {
-    background: 'rgba(255,255,255,0.12)',
-    padding: '10px 14px',
-    borderRadius: 8,
-    color: '#fff'
-};
+import '../components/Styles/tracking.css';
 
 const Tracking = () => {
     const socketRef = useRef(null);
@@ -196,101 +191,99 @@ const Tracking = () => {
     };
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', color: '#fff' }}>
-            <div style={{ flex: 1, padding: 28, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div className="tracking-root">
+            <div className="tracking-main">
                 {/* Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2 style={{ margin: 0 }}>Asignación de ticket</h2>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                    </div>
+                <div className="tracking-header">
+                    <h2>Asignación de ticket</h2>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }} />
                 </div>
-                <div style={{ display: 'flex', gap: 24, alignItems: 'stretch', flex: 1 }}>
+
+                <div className="tracking-row">
                     {/* Left panel: form */}
-                        <div style={{ width: 320, minHeight: 500, ...pill, background: 'rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: 16 }}>
-                            <div style={{ fontWeight: 700 }}>Solicitante</div>
-                            <div style={{ background: '#fff', color: '#000000ff', padding: '10px 12px', borderRadius: 8 }}>{ticketActual?.usuario ?? '—'}</div>
+                    <div className="left-panel pill">
+                        <div className="label">Solicitante</div>
+                        <div className="requester" style={{ background: '#fff', color: '#000', padding: '10px 12px', borderRadius: 8 }}>{ticketActual?.usuario ?? '—'}</div>
 
-                            <div style={{ fontWeight: 700 }}>Ingeniero encargado</div>
-                            <select value={ingenieroEncargado} onChange={(e) => setIngenieroEncargado(e.target.value)} style={{ padding: '10px', borderRadius: 8, color: '#000000ff' }}>
-                                <option value="">Sin encargado</option>
-                                {ingenieros.map(ing => (
-                                    <option style={{color:"black"}} key={ing.id_ingeniero ?? ing.id ?? ing.idUsuario} value={ing.nombre}>{ing.nombre}</option>
-                                ))}
-                            </select>
+                        <div className="label">Ingeniero encargado</div>
+                        <select value={ingenieroEncargado} onChange={(e) => setIngenieroEncargado(e.target.value)}>
+                            <option value="">Sin encargado</option>
+                            {ingenieros.map(ing => (
+                                <option key={ing.id_ingeniero ?? ing.id ?? ing.idUsuario} value={ing.nombre}>{ing.nombre}</option>
+                            ))}
+                        </select>
 
-                            <div style={{ fontWeight: 700 }}>Prioridad</div>
-                            <select value={prioridadSeleccionada} onChange={(e) => setPrioridadSeleccionada(e.target.value)} style={{ padding: '10px', borderRadius: 8, color: '#000000ff' }}>
-                                <option value="">Sin prioridad</option>
-                                {prioridades.map(p => (
-                                    <option style={{color:"black"}} key={p.id_prioridad ?? p.id ?? p.nombre} value={String(p.id_prioridad ?? p.id ?? p.nombre)}>{p.nombre ?? p.prioridad ?? p}</option>
-                                ))}
-                            </select>
+                        <div className="label">Prioridad</div>
+                        <select value={prioridadSeleccionada} onChange={(e) => setPrioridadSeleccionada(e.target.value)}>
+                            <option value="">Sin prioridad</option>
+                            {prioridades.map(p => (
+                                <option key={p.id_prioridad ?? p.id ?? p.nombre} value={String(p.id_prioridad ?? p.id ?? p.nombre)}>{p.nombre ?? p.prioridad ?? p}</option>
+                            ))}
+                        </select>
 
-                            <div style={{ fontWeight: 700 }}>Tipo</div>
-                            <select value={tipoSeleccionado} onChange={(e) => setTipoSeleccionado(e.target.value)} style={{ padding: '10px', borderRadius: 8, color: '#000000ff' }}>
-                                <option value="">Selecciona un tipo</option>
-                                {tipos.map(t => (
-                                    <option style={{color:"black"}} key={t.idTipoTicket ?? t.id} value={t.tipo}>{t.tipo}</option>
-                                ))}
-                            </select>
+                        <div className="label">Tipo</div>
+                        <select value={tipoSeleccionado} onChange={(e) => setTipoSeleccionado(e.target.value)}>
+                            <option value="">Selecciona un tipo</option>
+                            {tipos.map(t => (
+                                <option key={t.idTipoTicket ?? t.id} value={t.tipo}>{t.tipo}</option>
+                            ))}
+                        </select>
 
-                            <div style={{ fontWeight: 700 }}>Estatus</div>
-                            <select value={estatusSeleccionado} onChange={(e) => setEstatusSeleccionado(e.target.value)} style={{ padding: '10px', borderRadius: 8, color: '#000000ff' }}>
-                                {estatusList && estatusList.length > 0 ? (
-                                    estatusList.map(es => (
-                                        <option style={{color:"black"}} key={es.id_estatus ?? es.id} value={es.nombre ?? es.estatus ?? es.value}>{es.nombre ?? es.estatus ?? es.value}</option>
-                                    ))
-                                ) : (
-                                    <>
-                                        <option value="Abierto">Abierto</option>
-                                        <option value="En proceso">En proceso</option>
-                                        <option value="Cerrado">Cerrado</option>
-                                    </>
-                                )}
-                            </select>
-                            <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
-                                <button onClick={handleGuardar} style={{ background: '#2ecc71', border: 'none', padding: '12px 16px', borderRadius: 8 }}>Guardar</button>
-                                <button onClick={() => { setTicketActual(null); }} style={{ background: '#e74c3c', border: 'none', padding: '12px 16px', borderRadius: 8 }}>Limpiar</button>
-                            </div>
+                        <div className="label">Estatus</div>
+                        <select value={estatusSeleccionado} onChange={(e) => setEstatusSeleccionado(e.target.value)}>
+                            {estatusList && estatusList.length > 0 ? (
+                                estatusList.map(es => (
+                                    <option key={es.id_estatus ?? es.id} value={es.nombre ?? es.estatus ?? es.value}>{es.nombre ?? es.estatus ?? es.value}</option>
+                                ))
+                            ) : (
+                                <>
+                                    <option value="Abierto">Abierto</option>
+                                    <option value="En proceso">En proceso</option>
+                                    <option value="Cerrado">Cerrado</option>
+                                </>
+                            )}
+                        </select>
+
+                        <div className="left-actions">
+                            <button onClick={handleGuardar} className="btn btn-save">Guardar</button>
+                            <button onClick={() => { setTicketActual(null); }} className="btn btn-clear">Limpiar</button>
                         </div>
+                    </div>
 
                     {/* Center panel: chat and ticket details */}
-                    <div style={{ flex: 1, minHeight: 550, background: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <div className="center-panel">
+                        <div className="center-top">
                             <div>
-                                <div style={{ fontWeight: 700 }}>Asunto : {ticketActual?.tipo_ticket ?? '—'}</div>
-                                <div style={{ fontSize: 12, opacity: 0.85 }}>Fecha: {ticketActual ? new Date(ticketActual.fechaCreacion).toLocaleString() : '—'} · Departamento: {ticketActual?.departamento ?? ticketActual?.area ?? '—'}</div>
+                                <div className="subject">Asunto : {ticketActual?.tipo_ticket ?? '—'}</div>
+                                <div className="meta">Fecha: {ticketActual ? new Date(ticketActual.fechaCreacion).toLocaleString() : '—'} · Departamento: {ticketActual?.departamento ?? ticketActual?.area ?? '—'}</div>
                             </div>
                             <div style={{ textAlign: 'right' }}>
                                 <div>Folio : {ticketActual?.folio ?? '—'}</div>
                                 <div>Encargado : {ticketActual?.ingeniero ?? 'Sin encargado'}</div>
-                                <div style={{ color: ticketActual?.estatus === 'Abierto' ? '#2ecc71' : '#f39c12', fontWeight: 700 }}>{ticketActual?.estatus ?? '—'}</div>
+                                <div className={`status ${ticketActual?.estatus === 'Abierto' ? 'status-open' : 'status-other'}`}>{ticketActual?.estatus ?? '—'}</div>
                             </div>
                         </div>
 
-                        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                            {/* Mensajes de ejemplo: si ticketActual tiene conversación, mostrarla */}
+                        <div className="messages">
                             {(ticketActual?.conversacion || []).length > 0 ? (
                                 (ticketActual.conversacion).map((m, i) => (
-                                    <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', justifyContent: m.sender === 'user' ? 'flex-start' : 'flex-end' }}>
-                                        <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#fff' }} />
-                                        <div style={{ background: '#cfe9d9', color: '#000', padding: 12, borderRadius: 12, maxWidth: '70%' }}>
-                                            {m.text}
-                                        </div>
+                                    <div key={i} className={`msg ${m.sender === 'user' ? 'msg-user' : 'msg-engineer'}`}>
+                                        <div className="avatar" />
+                                        <div className="bubble">{m.text}</div>
                                     </div>
                                 ))
                             ) : (
                                 ticketActual ? (
-                                    <div style={{ padding: 12, borderRadius: 8, background: 'rgba(255,255,255,0.02)' }}>No hay mensajes todavía en este ticket.</div>
+                                    <div className="no-ticket">No hay mensajes todavía en este ticket.</div>
                                 ) : (
-                                    <div style={{ padding: 12, borderRadius: 8, background: 'rgba(255,255,255,0.02)' }}>Selecciona o espera a que llegue un ticket nuevo.</div>
+                                    <div className="no-ticket">Selecciona o espera a que llegue un ticket nuevo.</div>
                                 )
                             )}
                         </div>
 
-                        <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <input placeholder="Agregar algún comentario" style={{color: "black", flex: 1, padding: '12px 16px', borderRadius: 24, border: 'none', outline: 'none' }} />
-                            <button style={{ width: 44, height: 44, borderRadius: '50%', background: '#fff', border: 'none' }}>↑</button>
+                        <div className="footer-input">
+                            <input placeholder="Agregar algún comentario" />
+                            <button>↑</button>
                         </div>
                     </div>
                 </div>

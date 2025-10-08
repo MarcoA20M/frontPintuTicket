@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { getAllTickets } from "../services/ticketService";
-import { Box, Table, Thead, Tbody, Tr, Th, Td, Badge } from "@chakra-ui/react";
+import { getAllTipoTickets } from "../services/tipoTicketService";
+import { getAllIngenieros } from "../services/ingenieroService";
+import { getAllPrioridad } from "../services/prioridad";
+import './Styles/TicketTable.css';
+
 
 const TicketTable = () => {
     const [tickets, setTickets] = useState([]);
@@ -10,6 +14,11 @@ const TicketTable = () => {
     const [filtroTipo, setFiltroTipo] = useState("");
     const [filtroIngeniero, setFiltroIngeniero] = useState("");
     const [sortBy, setSortBy] = useState("");
+    // opciones cargadas desde servicios
+    const [prioridadesOptions, setPrioridadesOptions] = useState([]);
+    const [tiposOptions, setTiposOptions] = useState([]);
+    const [ingenierosOptions, setIngenierosOptions] = useState([]);
+    const [loadingOptions, setLoadingOptions] = useState(true);
 
     useEffect(() => {
         const fetchTickets = async () => {
@@ -26,6 +35,38 @@ const TicketTable = () => {
         fetchTickets();
     }, []);
 
+    // Cargar opciones desde servicios (prioridad, tipos, ingenieros)
+    useEffect(() => {
+        const fetchOptions = async () => {
+            try {
+                const [pData, tiposData, engenData] = await Promise.all([
+                    getAllPrioridad().catch(() => []),
+                    getAllTipoTickets().catch(() => []),
+                    getAllIngenieros().catch(() => []),
+                ]);
+
+                // Normalizar prioridades a strings
+                const pOpts = Array.isArray(pData) ? pData.map(p => (typeof p === 'string' ? p : (p.nombre || p.prioridad || p.value || String(p)))).filter(Boolean) : [];
+
+                // Normalizar tipos (tipoTicketService devuelve { idTipoTicket, tipo })
+                const tOpts = Array.isArray(tiposData) ? tiposData.map(t => (t.tipo || t.nombre || String(t))).filter(Boolean) : [];
+
+                // Normalizar ingenieros (puede devolver objetos con 'nombre')
+                const iOpts = Array.isArray(engenData) ? engenData.map(i => (i.nombre || i.name || i.usuario || String(i))).filter(Boolean) : [];
+
+                setPrioridadesOptions(pOpts);
+                setTiposOptions(tOpts);
+                setIngenierosOptions(iOpts);
+            } catch (err) {
+                console.error('Error cargando opciones:', err);
+            } finally {
+                setLoadingOptions(false);
+            }
+        };
+
+        fetchOptions();
+    }, []);
+
     if (loading) return <p>Cargando tickets...</p>;
     if (error) return <p style={{ color: "red" }}>{error}</p>;
 
@@ -33,6 +74,11 @@ const TicketTable = () => {
     const prioridades = Array.from(new Set(tickets.map(t => t.prioridad).filter(Boolean)));
     const tipos = Array.from(new Set(tickets.map(t => t.tipo_ticket).filter(Boolean)));
     const ingenieros = Array.from(new Set(tickets.map(t => t.ingeniero).filter(Boolean)));
+
+    // Si los servicios devolvieron opciones, úsalas; si no, fallback a las derivadas de tickets
+    const displayPrioridades = (prioridadesOptions && prioridadesOptions.length) ? prioridadesOptions : prioridades;
+    const displayTipos = (tiposOptions && tiposOptions.length) ? tiposOptions : tipos;
+    const displayIngenieros = (ingenierosOptions && ingenierosOptions.length) ? ingenierosOptions : ingenieros;
 
     // aplicar filtros
     let filteredTickets = tickets.filter(t => {
@@ -55,123 +101,118 @@ const TicketTable = () => {
     }
 
     return (
-        <div className="p-6">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-6"> Lista de Tickets</h2>
+        <div className="p-6 ticket-table">
+            <h2 className="text-2xl font-semibold text-gray-80 mb-6"> Lista de Tickets</h2>
 
-            {/* Filtros */}
-            <div className="flex flex-wrap gap-4 items-center mb-6 bg-gray-100 p-4 rounded-lg shadow-sm">
-                <label className="text-gray-700 font-medium" >
-                    Prioridad:
+            {/* Filtros (Bootstrap) */}
+            <div className="d-flex flex-wrap gap-3 align-items-center mb-3">
+                <div className="form-group mb-0">
+                    <label className="form-label">Prioridad</label>
                     <select
-                        className="ml-2 p-2 border border-gray-300 rounded-lg focus:ring focus:ring-blue-300 text-gray-700"
+                        className="form-select"
                         value={filtroPrioridad}
-                        onChange={(e) => setFiltroPrioridad(e.target.value)} style={{color: "black"}}
+                        onChange={(e) => setFiltroPrioridad(e.target.value)}
                     >
-                        <option value="" style={{color: "black"}}>Todas</option>
-                        {prioridades.map((p) => (
-                            <option key={p} value={p} style={{color: "black"}}>
-                                {p}
-                            </option>
+                        <option value="">Todas</option>
+                        {displayPrioridades.map((p) => (
+                            <option key={p} value={p}>{p}</option>
                         ))}
                     </select>
-                </label>
+                </div>
 
-                <label className="text-gray-700 font-medium">
-                    Tipo:
+                <div className="form-group mb-0">
+                    <label className="form-label">Tipo</label>
                     <select
-                        className="ml-2 p-2 border border-gray-300 rounded-lg focus:ring focus:ring-blue-300 text-gray-700"
+                        className="form-select"
                         value={filtroTipo}
-                        onChange={(e) => setFiltroTipo(e.target.value)} style={{color: "black"}}
+                        onChange={(e) => setFiltroTipo(e.target.value)}
                     >
                         <option value="">Todos</option>
-                        {tipos.map((t) => (
-                            <option key={t} value={t} style={{color: "black"}}>
-                                {t}
-                            </option>
+                        {displayTipos.map((t) => (
+                            <option key={t} value={t}>{t}</option>
                         ))}
                     </select>
-                </label>
+                </div>
 
-                <label className="text-gray-700 font-medium">
-                    Ingeniero:
+                <div className="form-group mb-0">
+                    <label className="form-label">Ingeniero</label>
                     <select
-                        className="ml-2 p-2 border border-gray-300 rounded-lg focus:ring focus:ring-blue-300 text-gray-700"
+                        className="form-select"
                         value={filtroIngeniero}
-                        onChange={(e) => setFiltroIngeniero(e.target.value)} style={{color: "black"}}
+                        onChange={(e) => setFiltroIngeniero(e.target.value)}
                     >
                         <option value="">Todos</option>
-                        {ingenieros.map((i) => (
-                            <option key={i} value={i} style={{color: "black"}}>
-                                {i}
-                            </option>
+                        {displayIngenieros.map((i) => (
+                            <option key={i} value={i}>{i}</option>
                         ))}
                     </select>
-                </label>
+                </div>
 
-                <label >
-                    Ordenar por:
-                    <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                        <option value="" >--</option>
-                        <option value="prioridad" style={{color: "black"}}>Prioridad</option>
-                        <option value="tipo_ticket" style={{color: "black"}}>Tipo</option>
-                        <option value="ingeniero" style={{color: "black"}}>Ingeniero</option>
+                {/* <div className="form-group mb-0">
+                    <label className="form-label">Ordenar por</label>
+                    <select className="form-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                        <option value="">--</option>
+                        <option value="prioridad">Prioridad</option>
+                        <option value="tipo_ticket">Tipo</option>
+                        <option value="ingeniero">Ingeniero</option>
                     </select>
-                </label>
+                </div> */}
 
-                <button
-                    className="ml-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg shadow transition" style={{color: "white", background : "purple", padding: "0.5rem", borderRadius:"0.5rem"}}
-                    onClick={() => {
-                        setFiltroPrioridad("");
-                        setFiltroTipo("");
-                        setFiltroIngeniero("");
-                        setSortBy("");
-                    }}
-                >
-                    Limpiar
-                </button>
+                <div className="form-group mb-0">
+                    <button
+                        className="btn btn-secondary"
+                        onClick={() => {
+                            setFiltroPrioridad("");
+                            setFiltroTipo("");
+                            setFiltroIngeniero("");
+                            setSortBy("");
+                        }}
+                    >
+                        Limpiar
+                    </button>
+                </div>
             </div>
 
             {/* Tabla */}
-            <div className="overflow-x-auto rounded-lg shadow border border-gray-300 bg-white">
-                <table className="min-w-full table-auto font-sans text-gray-900">
-                    <thead className="" style={{background : "purple"}}>
+            <div >
+                <table >
+                    <thead >
                         <tr>
-                            <th className="px- py-3 text-left font-semibold">Folios</th>
-                            <th className="px-4 py-3 text-left font-semibold">Usuario</th>
-                            <th className="px-4 py-3 text-left font-semibold">Tipo de Ticket</th>
-                            <th className="px-4 py-3 text-left font-semibold">Fecha de Creación</th>
-                            <th className="px-4 py-3 text-left font-semibold">Estatus</th>
-                            <th className="px-4 py-3 text-left font-semibold">Descripción</th>
-                            <th className="px-4 py-3 text-left font-semibold">Ingeniero</th>
-                            <th className="px-4 py-3 text-left font-semibold">Ticket Maestro</th>
-                            <th className="px-4 py-3 text-left font-semibold">Prioridad</th>
+                            <th>Folios</th>
+                            <th >Usuario</th>
+                            <th>Tipo de Ticket</th>
+                            <th>Fecha de Creación</th>
+                            <th >Estatus</th>
+                            <th >Descripción</th>
+                            <th >Ingeniero</th>
+                            <th >Ticket Maestro</th>
+                            <th >Prioridad</th>
                         </tr>
                     </thead>
-                    <tbody style={{background : "blue"}}>
+                    <tbody >
                         {filteredTickets.length > 0 ? (
                             filteredTickets.map((ticket, idx) => (
                                 <tr
                                     key={ticket.folio}
-                                    className={`border-b border-gray-200 ${idx % 2 === 0 ? "bg-white" : "bg-blue-50"} hover:bg-blue-100 transition-colors duration-150`}
                                 >
-                                    <td className="px-4 py-3 font-medium align-middle">{ticket.folio}</td>
-                                    <td className="px-4 py-3 align-middle">{ticket.usuario}</td>
-                                    <td className="px-4 py-3 align-middle">{ticket.tipo_ticket}</td>
-                                    <td className="px-4 py-3 align-middle">{ticket.fechaCreacion}</td>
-                                    <td className="px-4 py-3 font-medium align-middle">
+                                    <td >{ticket.folio}</td>
+                                    <td >{ticket.usuario}</td>
+                                    <td >{ticket.tipo_ticket}</td>
+                                    <td >{ticket.fechaCreacion}</td>
+                                    <td >
                                         <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${ticket.estatus === "Abierto" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{ticket.estatus}</span>
                                     </td>
-                                    <td className="px-4 py-3 whitespace-pre-line max-w-xs align-middle">{ticket.descripcion}</td>
-                                    <td className="px-4 py-3 align-middle">{ticket.ingeniero}</td>
-                                    <td className="px-4 py-3 align-middle">{ticket.ticketMaestro ?? "N/A"}</td>
-                                    <td className="px-4 py-3 font-semibold align-middle">
+                                    <td >{ticket.descripcion}</td>
+                                    <td >{ticket.ingeniero}</td>
+                                    <td >{ticket.ticketMaestro ?? "N/A"}</td>
+                                    <td >
                                         <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${ticket.prioridad === "Alta" ? "bg-red-100 text-red-700" : ticket.prioridad === "Media" ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700"}`}>{ticket.prioridad}</span>
                                     </td>
                                 </tr>
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="9" className="px-4 py-6 text-center text-gray-500">
+                                <td >
                                     No hay tickets registrados
                                 </td>
                             </tr>
