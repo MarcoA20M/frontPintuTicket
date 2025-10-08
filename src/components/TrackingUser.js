@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getTicketsByUsuario } from '../services/ticketService';
+import { getTicketsByUsuario  } from '../services/ticketService';
 import Sidebar from './Sidebar';
 
 const cardStyle = {
@@ -27,24 +27,26 @@ const TrackingUser = () => {
     // Estado para tickets del usuario
     const [userTickets, setUserTickets] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [filterFolio, setFilterFolio] = useState('');
+    const [debugAttempts, setDebugAttempts] = useState([]);
 
     useEffect(() => {
-        // Obtener usuario autenticado
         const usuarioGuardado = localStorage.getItem('usuario');
-        let nombreUsuario = '';
-        if (usuarioGuardado) {
+        (async () => {
+            if (!usuarioGuardado) {
+                setUserTickets([]);
+                setLoading(false);
+                return;
+            }
             const usuario = JSON.parse(usuarioGuardado);
-            nombreUsuario = usuario.userName || usuario.nombre;
-        }
-        if (nombreUsuario) {
-            getTicketsByUsuario(nombreUsuario)
-                .then(tickets => setUserTickets(tickets))
-                .catch(() => setUserTickets([]))
-                .finally(() => setLoading(false));
-        } else {
-            setUserTickets([]);
+            const userId = usuario.id || usuario.userId || usuario.idUsuario || usuario.id_usuario || null;
+            const userName = usuario.userName || usuario.user || usuario.username || usuario.nombre || '';
+
+            const attempts = [];
+
+            setDebugAttempts(attempts);
             setLoading(false);
-        }
+        })();
     }, []);
 
     // Calcular totales
@@ -71,36 +73,79 @@ const TrackingUser = () => {
                     </div>
 
                     <div style={{ marginLeft: 'auto' }}>
-                        <input placeholder="Folio" style={{ padding: '10px 14px', borderRadius: 20, border: 'none', outline: 'none', minWidth: 220 }} />
+                        <input placeholder="Folio" value={filterFolio} onChange={e => setFilterFolio(e.target.value)} style={{ padding: '10px 14px', borderRadius: 20, border: 'none', outline: 'none', minWidth: 220 }} />
                     </div>
                 </div>
 
                 <div style={{ background: 'rgba(0,0,0,0.12)', padding: 24, borderRadius: 10 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 0.6fr', gap: 12, alignItems: 'center' }}>
-                        <div style={{ fontWeight: 700 }}>Asignado a</div>
-                        <div style={{ fontWeight: 700 }}>Fecha</div>
-                        <div style={{ fontWeight: 700 }}>Fecha de solucionado</div>
-                        <div style={{ fontWeight: 700 }}>Folio</div>
-                        <div style={{ fontWeight: 700 }}>Seguimiento</div>
-                        <div style={{ fontWeight: 700 }}>Status</div>
-                    </div>
 
                     <hr style={{ border: 'none', height: 2, background: 'rgba(255,255,255,0.06)', margin: '12px 0' }} />
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 0.6fr', gap: 12, alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#fff' }} />
-                            <div>
-                                <div style={{ fontWeight: 700 }}>Diana Herrera</div>
-                                <div style={{ fontSize: 12 }}>sistemas@pintumex.com.mx</div>
-                            </div>
-                        </div>
-                        <div>08/10/2025</div>
-                        <div>18/10/2025</div>
-                        <div>55453605</div>
-                        <div><button onClick={() => handleView('55453605')} style={{ background: '#2ecc71', border: 'none', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Ver</button></div>
-                        <div><button onClick={() => handleStatusClick('55453605')} style={{ background: '#2ecc71', padding: '8px 12px', borderRadius: 6, color: '#000', fontWeight: 700, border: 'none', cursor: 'pointer' }}>Abierto</button></div>
-                    </div>
+                    {loading ? (
+                        <div>Cargando tickets...</div>
+                    ) : (
+                        (() => {
+                            const filtered = userTickets.filter(t => {
+                                if (!filterFolio) return true;
+                                const f = String(filterFolio).trim().toLowerCase();
+                                return String(t.folio ?? t.id ?? '').toLowerCase().includes(f);
+                            });
+
+                            return (
+                                <div>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                        <thead>
+                                            <tr style={{ textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                                <th style={{ padding: '8px' }}>Folio</th>
+                                                <th style={{ padding: '8px' }}>Usuario</th>
+                                                <th style={{ padding: '8px' }}>Tipo de Ticket</th>
+                                                <th style={{ padding: '8px' }}>Fecha de Creación</th>
+                                                <th style={{ padding: '8px' }}>Estatus</th>
+                                                <th style={{ padding: '8px' }}>Descripción</th>
+                                                <th style={{ padding: '8px' }}>Ingeniero</th>
+                                                <th style={{ padding: '8px' }}>Ticket Maestro</th>
+                                                <th style={{ padding: '8px' }}>Prioridad</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filtered && filtered.length > 0 ? (
+                                                filtered.map((ticket) => (
+                                                    <tr key={ticket.folio ?? ticket.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                                        <td style={{ padding: '8px' }}>{ticket.folio}</td>
+                                                        <td style={{ padding: '8px' }}>{ticket.usuario ?? ticket.nombre ?? ticket.userName}</td>
+                                                        <td style={{ padding: '8px' }}>{ticket.tipo_ticket}</td>
+                                                        <td style={{ padding: '8px' }}>{ticket.fechaCreacion ? new Date(ticket.fechaCreacion).toLocaleString() : (ticket.fecha ? new Date(ticket.fecha).toLocaleString() : '—')}</td>
+                                                        <td style={{ padding: '8px' }}><span style={{ padding: '4px 8px', borderRadius: 6, fontWeight: 700, background: ticket.estatus === 'Abierto' ? '#d1fae5' : '#fee2e2', color: ticket.estatus === 'Abierto' ? '#166534' : '#991b1b' }}>{ticket.estatus}</span></td>
+                                                        <td style={{ padding: '8px' }}>{ticket.descripcion}</td>
+                                                        <td style={{ padding: '8px' }}>{ticket.ingeniero}</td>
+                                                        <td style={{ padding: '8px' }}>{ticket.ticketMaestro ?? 'N/A'}</td>
+                                                        <td style={{ padding: '8px' }}><span style={{ padding: '4px 8px', borderRadius: 6, fontWeight: 700, background: ticket.prioridad === 'Alta' ? '#fee2e2' : ticket.prioridad === 'Media' ? '#fef3c7' : '#ecfccb', color: ticket.prioridad === 'Alta' ? '#991b1b' : ticket.prioridad === 'Media' ? '#92400e' : '#14532d' }}>{ticket.prioridad}</span></td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan={9} style={{ padding: '12px' }}>No hay tickets registrados</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+
+                                    {(!filtered || filtered.length === 0) && debugAttempts && debugAttempts.length > 0 && (
+                                        <div style={{ marginTop: 12, fontSize: 12, opacity: 0.9 }}>
+                                            Intentos realizados (debug):
+                                            <ul>
+                                                {debugAttempts.map((d, i) => (
+                                                    <li key={i} style={{ marginTop: 6 }}>
+                                                        <strong>{d.url || 'url n/a'}</strong> — status: {d.status} — ok: {String(d.ok)} — body: {typeof d.body === 'string' ? d.body.slice(0, 160) : (Array.isArray(d.body) ? `Array(${d.body.length})` : JSON.stringify(d.body))}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()
+                    )}
                 </div>
             </div>
         </div>

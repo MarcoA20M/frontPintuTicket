@@ -4,7 +4,7 @@ import io from 'socket.io-client';
 import { getAllUsuarios } from '../services/usuarioService';
 import {getAllIngenieros} from '../services/ingenieroService'
 import { getAllTipoTickets } from '../services/tipoTicketService';
-import { getAllTickets, updateTicket } from '../services/ticketService';
+import { getAllTickets, getTicketById, updateTicket } from '../services/ticketService';
 import { useNotifications } from '../contexts/NotificationContext';
 import { getAllEstatus } from '../services/estatus';
 import { getAllPrioridad } from '../services/prioridad';
@@ -171,13 +171,31 @@ const Tracking = () => {
                 // evento legacy para asignación
                 socketRef.current.emit('assignTicket', { folio: updated.folio, ingeniero: updated.ingeniero });
                 // emitir un evento más descriptivo que el servidor puede reenviar al usuario solicitante
-                const notifyPayload = {
+                let notifyPayload = {
                     folio: updated.folio,
-                    usuario: updated.usuario ?? ticketActual?.usuario ?? updated.user ?? updated.usuario_nombre,
+                    // preferir datos en ticketActual (vienen del ticket antes de update) ya que el objeto 'updated' puede venir incompleto
+                    usuario_nombre: ticketActual?.usuario ?? updated.usuario ?? updated.user ?? updated.usuario_nombre ?? updated.nombre,
+                    usuario_id: ticketActual?.id_usuario ?? ticketActual?.idUsuario ?? updated.id_usuario ?? updated.idUsuario ?? updated.usuario_id ?? updated.usuarioId ?? updated.id ?? undefined,
+                    usuario_email: ticketActual?.correo ?? ticketActual?.email ?? updated.correo ?? updated.email ?? updated.usuario_correo ?? updated.usuarioEmail ?? undefined,
                     ingeniero: updated.ingeniero,
                     estatus: updated.estatus,
                     id_prioridad: updated.id_prioridad ?? payload.id_prioridad
                 };
+
+                // Si faltan identificadores del solicitante, obtener el ticket completo por folio y completar el payload
+                if ((!notifyPayload.usuario_nombre || !notifyPayload.usuario_id) && socketRef.current) {
+                    try {
+                        const full = await getTicketById(updated.folio);
+                        if (full) {
+                            notifyPayload.usuario_nombre = notifyPayload.usuario_nombre || full.usuario || full.nombre || full.usuario_nombre;
+                            notifyPayload.usuario_id = notifyPayload.usuario_id || full.id_usuario || full.idUsuario || full.usuario_id || full.id;
+                            notifyPayload.usuario_email = notifyPayload.usuario_email || full.correo || full.email || full.usuario_correo;
+                        }
+                    } catch (e) {
+                        console.warn('No se pudo obtener ticket por folio para completar notificación:', e);
+                    }
+                }
+
                 console.log('Emitiendo ticketAssigned:', notifyPayload);
                 socketRef.current.emit('ticketAssigned', notifyPayload);
             }
@@ -245,8 +263,8 @@ const Tracking = () => {
                         </select>
 
                         <div className="left-actions">
-                            <button onClick={handleGuardar} className="btn btn-save">Guardar</button>
-                            <button onClick={() => { setTicketActual(null); }} className="btn btn-clear">Limpiar</button>
+                            <button onClick={handleGuardar} className="btn btn-success">Guardar</button>
+                            <button onClick={() => { setTicketActual(null); }} className="btn btn-info">Limpiar</button>
                         </div>
                     </div>
 
@@ -264,23 +282,54 @@ const Tracking = () => {
                             </div>
                         </div>
 
+                        {/* Lista de los 5 tickets en cola (Abiertos) - FIFO: el primero que llegó aparece arriba */}
                         <div className="messages">
-                            {(ticketActual?.conversacion || []).length > 0 ? (
-                                (ticketActual.conversacion).map((m, i) => (
-                                    <div key={i} className={`msg ${m.sender === 'user' ? 'msg-user' : 'msg-engineer'}`}>
-                                        <div className="avatar" />
-                                        <div className="bubble">{m.text}</div>
-                                    </div>
-                                ))
-                            ) : (
-                                ticketActual ? (
-                                    <div className="no-ticket">No hay mensajes todavía en este ticket.</div>
-                                ) : (
-                                    <div className="no-ticket">Selecciona o espera a que llegue un ticket nuevo.</div>
-                                )
-                            )}
+                            {(() => {
+                                const queue = (tickets || [])
+                                    .filter(t => (t.estatus || '').toLowerCase() === 'abierto')
+                                    .sort((a, b) => new Date(a.fechaCreacion) - new Date(b.fechaCreacion));
+                                const five = queue.slice(0, 5);
+                                if (five.length === 0) {
+                                    return (
+                                        <div className="no-ticket">No hay tickets en cola. Espera a que llegue un ticket nuevo.</div>
+                                    );
+                                }
+                                return (
+                                    <ul className="ticket-queue-list">
+                                        {five.map((t) => (
+                                            <li
+                                                key={t.folio ?? t.id}
+                                                className={`queue-item ${ticketActual && (ticketActual.folio === t.folio || ticketActual.id === t.id) ? 'selected' : ''}`}
+                                                onClick={() => {
+                                                    // seleccionar ticket y rellenar panel izquierdo
+                                                    setTicketActual(t);
+                                                    setIngenieroEncargado(t.ingeniero || '');
+                                                    if (t.id_prioridad) setPrioridadSeleccionada(String(t.id_prioridad));
+                                                    else if (t.prioridad) {
+                                                        const matched = (prioridades || []).find(p => (p.nombre || '').toLowerCase() === String(t.prioridad).toLowerCase());
+                                                        if (matched) setPrioridadSeleccionada(String(matched.id_prioridad ?? matched.id));
+                                                        else setPrioridadSeleccionada('');
+                                                    } else setPrioridadSeleccionada('');
+                                                    setTipoSeleccionado(t.tipo_ticket || '');
+                                                    setEstatusSeleccionado(t.estatus || 'Abierto');
+                                                }}
+                                            >
+                                                <div className="queue-left">
+                                                    <div className="queue-folio">Folio: {t.folio ?? t.id}</div>
+                                                    <div className="queue-subject">{t.tipo_ticket ?? t.tipo ?? '—'}</div>
+                                                </div>
+                                                <div className="queue-right">
+                                                    <div className="queue-user">{t.usuario ?? t.nombre ?? 'Solicitante'}</div>
+                                                    <div className="queue-date">{t.fechaCreacion ? new Date(t.fechaCreacion).toLocaleString() : ''}</div>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                );
+                            })()}
                         </div>
 
+                        {/* footer-input se mantiene solo con comentario breve (no afecta la selección) */}
                         <div className="footer-input">
                             <input placeholder="Agregar algún comentario" />
                             <button>↑</button>

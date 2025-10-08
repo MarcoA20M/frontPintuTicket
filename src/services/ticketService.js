@@ -1,35 +1,5 @@
 const BASE_URL = "http://localhost:8080/tickets";
 
-// // Crear un ticket (POST a /tickets)
-// export const createTicket = async (ticketData) => {
-//     try {
-//         console.log('createTicket: payload ->', ticketData);
-//         const response = await fetch(`${BASE_URL}`, {
-//             method: "POST",
-//             headers: { "Content-Type": "application/json" },
-//             body: JSON.stringify(ticketData),
-//         });
-//         if (!response.ok) {
-//             let errorText = '';
-//             try {
-//                 const errorData = await response.json();
-//                 errorText = errorData.message || JSON.stringify(errorData);
-//             } catch (e) {
-//                 errorText = await response.text().catch(() => 'No body');
-//             }
-//             console.error(`createTicket: response not ok (status=${response.status}) ->`, errorText);
-//             throw new Error(errorText || "Error al crear el ticket");
-//         }
-
-//         const createdTicket = await response.json();
-//         console.log('createTicket: success ->', createdTicket);
-//         return createdTicket; // Devuelve el ticket creado con su folio, etc.
-//     } catch (error) {
-//         console.error("Error en ticketService:", error);
-//         throw error;
-//     }
-// };
-
 // Alternativa: crear ticket usando endpoint /tickets/createTicket
 export const createTicketCreate = async (ticketData) => {
     try {
@@ -92,7 +62,7 @@ export const getAllTickets = async () => {
 // Obtener tickets por usuario
 export const getTicketsByUsuario = async (nombreUsuario) => {
     try {
-        const response = await fetch(`${BASE_URL}/usuario/${nombreUsuario}`);
+        const response = await fetch(`${BASE_URL}/usuario/${encodeURIComponent(nombreUsuario)}`);
         if (!response.ok) {
             throw new Error("Error al obtener los tickets del usuario");
         }
@@ -103,6 +73,9 @@ export const getTicketsByUsuario = async (nombreUsuario) => {
         throw error;
     }
 };
+
+
+
 
 
 // Obtener ticket por ID

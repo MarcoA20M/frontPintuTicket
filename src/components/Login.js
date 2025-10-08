@@ -73,6 +73,8 @@ const LoginPage = ({ onLoginSuccess }) => {
       if (data && data.user) {
         const u = data.user;
         usuario = {
+          id: u.id || u.userId || u.idUsuario || u.id_usuario || '',
+          idUsuario: u.id || u.userId || u.idUsuario || u.id_usuario || '',
           nombre: u.name || u.nombre || u.displayName || u.username || u.userName || '',
           apePat: u.apePat || u.ape_paterno || '',
           apeMat: u.apeMat || u.ape_materno || '',
@@ -84,6 +86,8 @@ const LoginPage = ({ onLoginSuccess }) => {
       } else {
         const { givenName, sn, displayName, mail, username, accessToken } = data || {};
         usuario = {
+          id: data?.id || data?.userId || data?.idUsuario || data?.id_usuario || '',
+          idUsuario: data?.id || data?.userId || data?.idUsuario || data?.id_usuario || '',
           nombre: givenName || displayName || username || '',
           apePat: sn ? sn.split(' ')[0] : '',
           apeMat: sn ? sn.split(' ')[1] || '' : '',
