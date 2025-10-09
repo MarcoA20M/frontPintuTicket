@@ -60,16 +60,18 @@ export const getAllTickets = async () => {
 
 // --- NUEVO ---
 // Obtener tickets por usuario
-export const getTicketsByUsuario = async (nombreUsuario) => {
+
+export const getTicketsByUsuarioId = async (userId) => {
     try {
-        const response = await fetch(`${BASE_URL}/usuario/${encodeURIComponent(nombreUsuario)}`);
+        const response = await fetch(`${BASE_URL}/TicketsByUserId?userId=${encodeURIComponent(userId)}`);
         if (!response.ok) {
-            throw new Error("Error al obtener los tickets del usuario");
+            const txt = await response.text().catch(() => null);
+            throw new Error(`Error al obtener tickets por userId (status=${response.status}): ${txt}`);
         }
         const tickets = await response.json();
         return tickets;
     } catch (error) {
-        console.error("Error en ticketService:", error);
+        console.error('Error en getTicketsByUsuarioId:', error);
         throw error;
     }
 };

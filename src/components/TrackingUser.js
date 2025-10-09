@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getTicketsByUsuario  } from '../services/ticketService';
+import { getTicketsByUsuarioId } from '../services/ticketService';
 import Sidebar from './Sidebar';
 
 const cardStyle = {
@@ -29,6 +29,7 @@ const TrackingUser = () => {
     const [loading, setLoading] = useState(true);
     const [filterFolio, setFilterFolio] = useState('');
     const [debugAttempts, setDebugAttempts] = useState([]);
+    const [selectedFolio, setSelectedFolio] = useState(null);
 
     useEffect(() => {
         const usuarioGuardado = localStorage.getItem('usuario');
@@ -43,6 +44,29 @@ const TrackingUser = () => {
             const userName = usuario.userName || usuario.user || usuario.username || usuario.nombre || '';
 
             const attempts = [];
+
+
+            try {
+                if (userId) {
+                    // usar endpoint TicketsByUserId
+                    const t = await getTicketsByUsuarioId(userId);
+                    setUserTickets(Array.isArray(t) ? t : []);
+                    setDebugAttempts(attempts);
+                    setLoading(false);
+                    return;
+                }
+
+                // si sólo hay userName no tenemos endpoint directo aquí; dejar vacío
+                if (userName) {
+                    setUserTickets([]);
+                    setDebugAttempts(attempts);
+                    setLoading(false);
+                    return;
+                }
+            } catch (e) {
+                console.error('Error obteniendo tickets del usuario:', e);
+                setDebugAttempts([{ ok: false, status: 0, body: e.message || String(e), url: `TicketsByUserId?userId=${userId}` }]);
+            }
 
             setDebugAttempts(attempts);
             setLoading(false);
@@ -92,55 +116,38 @@ const TrackingUser = () => {
                             });
 
                             return (
-                                <div>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                        <thead>
-                                            <tr style={{ textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                                                <th style={{ padding: '8px' }}>Folio</th>
-                                                <th style={{ padding: '8px' }}>Usuario</th>
-                                                <th style={{ padding: '8px' }}>Tipo de Ticket</th>
-                                                <th style={{ padding: '8px' }}>Fecha de Creación</th>
-                                                <th style={{ padding: '8px' }}>Estatus</th>
-                                                <th style={{ padding: '8px' }}>Descripción</th>
-                                                <th style={{ padding: '8px' }}>Ingeniero</th>
-                                                <th style={{ padding: '8px' }}>Ticket Maestro</th>
-                                                <th style={{ padding: '8px' }}>Prioridad</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {filtered && filtered.length > 0 ? (
-                                                filtered.map((ticket) => (
-                                                    <tr key={ticket.folio ?? ticket.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                                                        <td style={{ padding: '8px' }}>{ticket.folio}</td>
-                                                        <td style={{ padding: '8px' }}>{ticket.usuario ?? ticket.nombre ?? ticket.userName}</td>
-                                                        <td style={{ padding: '8px' }}>{ticket.tipo_ticket}</td>
-                                                        <td style={{ padding: '8px' }}>{ticket.fechaCreacion ? new Date(ticket.fechaCreacion).toLocaleString() : (ticket.fecha ? new Date(ticket.fecha).toLocaleString() : '—')}</td>
-                                                        <td style={{ padding: '8px' }}><span style={{ padding: '4px 8px', borderRadius: 6, fontWeight: 700, background: ticket.estatus === 'Abierto' ? '#d1fae5' : '#fee2e2', color: ticket.estatus === 'Abierto' ? '#166534' : '#991b1b' }}>{ticket.estatus}</span></td>
-                                                        <td style={{ padding: '8px' }}>{ticket.descripcion}</td>
-                                                        <td style={{ padding: '8px' }}>{ticket.ingeniero}</td>
-                                                        <td style={{ padding: '8px' }}>{ticket.ticketMaestro ?? 'N/A'}</td>
-                                                        <td style={{ padding: '8px' }}><span style={{ padding: '4px 8px', borderRadius: 6, fontWeight: 700, background: ticket.prioridad === 'Alta' ? '#fee2e2' : ticket.prioridad === 'Media' ? '#fef3c7' : '#ecfccb', color: ticket.prioridad === 'Alta' ? '#991b1b' : ticket.prioridad === 'Media' ? '#92400e' : '#14532d' }}>{ticket.prioridad}</span></td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr>
-                                                    <td colSpan={9} style={{ padding: '12px' }}>No hay tickets registrados</td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-
-                                    {(!filtered || filtered.length === 0) && debugAttempts && debugAttempts.length > 0 && (
-                                        <div style={{ marginTop: 12, fontSize: 12, opacity: 0.9 }}>
-                                            Intentos realizados (debug):
-                                            <ul>
-                                                {debugAttempts.map((d, i) => (
-                                                    <li key={i} style={{ marginTop: 6 }}>
-                                                        <strong>{d.url || 'url n/a'}</strong> — status: {d.status} — ok: {String(d.ok)} — body: {typeof d.body === 'string' ? d.body.slice(0, 160) : (Array.isArray(d.body) ? `Array(${d.body.length})` : JSON.stringify(d.body))}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
+                                <div className="ticket-cards">
+                                    {filtered && filtered.length > 0 ? (
+                                        filtered.map(ticket => {
+                                            const isSelected = String(selectedFolio) === String(ticket.folio ?? ticket.id);
+                                            return (
+                                                <div
+                                                    key={ticket.folio ?? ticket.id}
+                                                    className={`ticket-card ${isSelected ? 'selected' : ''}`}
+                                                    onClick={() => { setSelectedFolio(ticket.folio ?? ticket.id); handleView(ticket.folio ?? ticket.id); }}
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    onKeyDown={(e) => { if (e.key === 'Enter') { setSelectedFolio(ticket.folio ?? ticket.id); handleView(ticket.folio ?? ticket.id); } }}
+                                                >
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <div>
+                                                            <div style={{ fontSize: 12, opacity: 0.85 }}>Folio: <strong>{ticket.folio}</strong></div>
+                                                            <div style={{ marginTop: 6, fontWeight: 700 }}>{ticket.tipo_ticket ?? ticket.tipo ?? '—'}</div>
+                                                            <div style={{ marginTop: 6 }}>{ticket.descripcion}</div>
+                                                        </div>
+                                                        <div style={{ textAlign: 'right' }}>
+                                                            <div style={{ fontSize: 13 }}>{ticket.usuario ?? ticket.nombre ?? ticket.userName}</div>
+                                                            <div style={{ fontSize: 12, opacity: 0.8 }}>{ticket.fechaCreacion ? new Date(ticket.fechaCreacion).toLocaleString() : ''}</div>
+                                                            <div style={{ marginTop: 8 }}>
+                                                                <span style={{ padding: '4px 8px', borderRadius: 6, fontWeight: 700, background: ticket.estatus === 'Abierto' ? '#70e9aaff' : '#ef7d7dff', color: ticket.estatus === 'Abierto' ? '#166534' : '#991b1b' }}>{ticket.estatus}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        <div>No hay tickets registrados</div>
                                     )}
                                 </div>
                             );

@@ -295,36 +295,50 @@ const Tracking = () => {
                                     );
                                 }
                                 return (
-                                    <ul className="ticket-queue-list">
-                                        {five.map((t) => (
-                                            <li
-                                                key={t.folio ?? t.id}
-                                                className={`queue-item ${ticketActual && (ticketActual.folio === t.folio || ticketActual.id === t.id) ? 'selected' : ''}`}
-                                                onClick={() => {
-                                                    // seleccionar ticket y rellenar panel izquierdo
-                                                    setTicketActual(t);
-                                                    setIngenieroEncargado(t.ingeniero || '');
-                                                    if (t.id_prioridad) setPrioridadSeleccionada(String(t.id_prioridad));
-                                                    else if (t.prioridad) {
-                                                        const matched = (prioridades || []).find(p => (p.nombre || '').toLowerCase() === String(t.prioridad).toLowerCase());
-                                                        if (matched) setPrioridadSeleccionada(String(matched.id_prioridad ?? matched.id));
-                                                        else setPrioridadSeleccionada('');
-                                                    } else setPrioridadSeleccionada('');
-                                                    setTipoSeleccionado(t.tipo_ticket || '');
-                                                    setEstatusSeleccionado(t.estatus || 'Abierto');
-                                                }}
-                                            >
-                                                <div className="queue-left">
-                                                    <div className="queue-folio">Folio: {t.folio ?? t.id}</div>
-                                                    <div className="queue-subject">{t.tipo_ticket ?? t.tipo ?? '—'}</div>
+                                    <div className="ticket-cards" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                        {five.map((t) => {
+                                            const isSelected = ticketActual && (ticketActual.folio === t.folio || ticketActual.id === t.id);
+                                            return (
+                                                <div
+                                                    key={t.folio ?? t.id}
+                                                    className={`ticket-card ${isSelected ? 'selected' : ''}`}
+                                                    onClick={() => {
+                                                        // seleccionar ticket y rellenar panel izquierdo
+                                                        setTicketActual(t);
+                                                        setIngenieroEncargado(t.ingeniero || '');
+                                                        if (t.id_prioridad) setPrioridadSeleccionada(String(t.id_prioridad));
+                                                        else if (t.prioridad) {
+                                                            const matched = (prioridades || []).find(p => (p.nombre || '').toLowerCase() === String(t.prioridad).toLowerCase());
+                                                            if (matched) setPrioridadSeleccionada(String(matched.id_prioridad ?? matched.id));
+                                                            else setPrioridadSeleccionada('');
+                                                        } else setPrioridadSeleccionada('');
+                                                        setTipoSeleccionado(t.tipo_ticket || '');
+                                                        setEstatusSeleccionado(t.estatus || 'Abierto');
+                                                    }}
+                                                    style={{
+                                                        background: isSelected ? '#501d67ff' : '#fff',
+                                                        color: isSelected ? '#fff' : '#000',
+                                                        padding: 12,
+                                                        borderRadius: 8,
+                                                        width: '100%',
+                                                        cursor: 'pointer',
+                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                                                    }}
+                                                >
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <div>
+                                                            <div style={{ fontSize: 12, opacity: 0.85 }}>Folio: <strong>{t.folio ?? t.id}</strong></div>
+                                                            <div style={{ marginTop: 6, fontWeight: 700 }}>{t.tipo_ticket ?? t.tipo ?? '—'}</div>
+                                                        </div>
+                                                        <div style={{ textAlign: 'right' }}>
+                                                            <div style={{ fontSize: 13 }}>{t.usuario ?? t.nombre ?? 'Solicitante'}</div>
+                                                            <div style={{ fontSize: 12, opacity: 0.8 }}>{t.fechaCreacion ? new Date(t.fechaCreacion).toLocaleString() : ''}</div>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="queue-right">
-                                                    <div className="queue-user">{t.usuario ?? t.nombre ?? 'Solicitante'}</div>
-                                                    <div className="queue-date">{t.fechaCreacion ? new Date(t.fechaCreacion).toLocaleString() : ''}</div>
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
+                                            );
+                                        })}
+                                    </div>
                                 );
                             })()}
                         </div>

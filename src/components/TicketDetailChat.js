@@ -1,26 +1,51 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getTicketsByUsuario } from "../services/ticketService";
+import { getUsuarioById } from "../services/usuarioService";
+import { getTicketById } from "../services/ticketService";
 
 const TicketDetailChat = () => {
   const { folio } = useParams();
   const [ticket, setTicket] = useState(null);
-  const usuario = "Pedro"; // o sacarlo del contexto/auth
+  const [loading, setLoading] = useState(true);
+  const usuarioGuardado = localStorage.getItem('usuario');
+  const usuarioObj = usuarioGuardado ? JSON.parse(usuarioGuardado) : null;
+  const usuarioId = usuarioObj?.id ?? usuarioObj?.userId ?? usuarioObj?.idUsuario ?? usuarioObj?.id_usuario ?? null;
 
   useEffect(() => {
     const fetchTicket = async () => {
       try {
-        const tickets = await getTicketsByUsuario(usuario);
-        const foundTicket = tickets.find(t => t.folio.toString() === folio);
-        setTicket(foundTicket);
+        // intentar endpoint directo por folio primero
+        try {
+          const t = await getTicketById(folio);
+          if (t) {
+            setTicket(t);
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          // no encontrado por folio, intentar por usuario
+        }
+
+        if (!usuarioId) {
+          setTicket(null);
+          setLoading(false);
+          return;
+        }
+
+        const usuarioData = await getUsuarioById(usuarioId);
+        const tickets = usuarioData?.tickets || usuarioData?.misTickets || usuarioData?.ticketsUsuario || [];
+        const foundTicket = (tickets || []).find(t => String(t.folio) === String(folio));
+        setTicket(foundTicket || null);
+        setLoading(false);
       } catch (error) {
         console.error("Error al cargar el ticket:", error);
       }
     };
     fetchTicket();
-  }, [folio, usuario]);
+  }, [folio, usuarioId]);
 
-  if (!ticket) return <p>Cargando ticket...</p>;
+  if (loading) return <p>Cargando ticket...</p>;
+  if (!ticket) return <p>Ticket no encontrado</p>;
 
   const messages = [
     { sender: 'system', text: `¡Hola! Aquí está el ticket que creaste con el folio **${ticket.folio}**.` },

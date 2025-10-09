@@ -2,7 +2,7 @@
 /*eslint-disable*/
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { getTicketsByUsuario } from '../services/ticketService';
+import { getUsuarioById } from '../services/usuarioService';
 import '../components/Styles/sidebar.css';
 import logo from '../assets/image.png';
 
@@ -17,8 +17,10 @@ const Sidebar = () => {
   useEffect(() => {
     const fetchTickets = async () => {
       try {
-        const fetchedTickets = await getTicketsByUsuario(usuario);
-        setTickets(fetchedTickets);
+          if (!usuarioId) return;
+          const usuarioData = await getUsuarioById(usuarioId);
+          const fetchedTickets = usuarioData?.tickets || usuarioData?.misTickets || usuarioData?.ticketsUsuario || [];
+          setTickets(fetchedTickets);
       } catch (error) {
         console.error("Hubo un error al cargar los tickets:", error);
       }
