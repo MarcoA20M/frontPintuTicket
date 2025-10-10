@@ -316,8 +316,6 @@ const Tracking = () => {
                                                         setEstatusSeleccionado(t.estatus || 'Abierto');
                                                     }}
                                                     style={{
-                                                        background: isSelected ? '#501d67ff' : '#fff',
-                                                        color: isSelected ? '#fff' : '#000',
                                                         padding: 12,
                                                         borderRadius: 8,
                                                         width: '100%',

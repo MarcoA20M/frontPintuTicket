@@ -37,7 +37,7 @@ function AppWrapper() {
 }
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false); //poner false para probar login
+  const [isLoggedIn, setIsLoggedIn] = useState(true); //poner false para probar login
   const [role, setRole] = useState(null);
   const navigate = useNavigate();
 
@@ -68,7 +68,7 @@ function App() {
       {/* Sidebar dinámico 
       mover el 2 de lugar para que este como debe
       */}
-      {role === 'INGENIERO' ? <Sidebar2 /> : <Sidebar />} 
+      {role === 'INGENIERO' ? <Sidebar /> : <Sidebar2 />} 
 
       <div className="main-content-wrapper">
         <Header />

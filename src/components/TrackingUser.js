@@ -78,7 +78,7 @@ const TrackingUser = () => {
     const totalCerrados = userTickets.filter(t => t.estatus && t.estatus.toLowerCase() === 'cerrado').length;
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh' }}>
+        <div className="tracking-user-root" style={{ display: 'flex', minHeight: '100vh' }}>
             <div style={{ flex: 1, padding: 28, color: '#fff' }}>
                 <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>

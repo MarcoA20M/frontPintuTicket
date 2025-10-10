@@ -138,16 +138,13 @@
 
 /* Ticket cards (lista) */
 .ticket-cards{ display: flex; flex-direction: column; gap: 8px; }
-.ticket-card{ background: #fff; color: #000; padding: 12px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: pointer; transition: background 120ms ease, transform 120ms ease; }
-.ticket-card:hover{ background: #e6f0ff; transform: translateY(-2px); }
-.ticket-card.selected{ background: #1f74d1; color: #fff; transform: translateY(0); }
-.ticket-card.selected:hover{ background: #1b65bf; }
+.tracking-root .ticket-card{ background: #fff; color: #000; padding: 12px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: pointer; transition: background 160ms ease, transform 160ms ease, color 160ms ease; }
+.tracking-root .ticket-card:hover{ background: #e6f0ff; transform: translateY(-2px); color: #000; }
+.tracking-root .ticket-card.selected{ background: #501d67; color: #fff; transform: translateY(0); }
+.tracking-root .ticket-card.selected:hover{ background: #401653; }
 
-/* Asegurar que el texto dentro de las tarjetas sea negro en todas las situaciones */
-.ticket-cards .ticket-card,
-.ticket-cards .ticket-card * {
-  color: #000 !important;
-}
-
-/* Si quieres que el texto blanco se mantenga cuando una tarjeta está seleccionada,
-   elimina o ajusta la regla anterior. Actualmente forzamos negro por pedido del usuario. */
+/* TrackingUser: mantener texto negro aun cuando la tarjeta esté seleccionada */
+.tracking-user-root .ticket-card{ background: #fff; color: #000; padding: 12px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: pointer; transition: background 160ms ease, transform 160ms ease, color 160ms ease; }
+.tracking-user-root .ticket-card:hover{ background: #e6f0ff; transform: translateY(-2px); color: #000; }
+.tracking-user-root .ticket-card.selected{ background: #e6c7f0; color: #000; transform: translateY(0); }
+.tracking-user-root .ticket-card.selected:hover{ background: #d8b6e6; }
