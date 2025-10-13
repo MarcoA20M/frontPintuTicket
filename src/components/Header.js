@@ -57,7 +57,7 @@ const Header = () => {
                 <button
                     onClick={handleToggleNotifications}
                     className="header-link notifications-button"
-                >
+                    >
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         width="24"

@@ -68,7 +68,7 @@ function App() {
       {/* Sidebar dinámico 
       mover el 2 de lugar para que este como debe
       */}
-      {role === 'INGENIERO' ? <Sidebar /> : <Sidebar2 />} 
+      {role === 'INGENIERO' ? <Sidebar2 /> : <Sidebar />} 
 
       <div className="main-content-wrapper">
         <Header />

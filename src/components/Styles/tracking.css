@@ -148,3 +148,8 @@
 .tracking-user-root .ticket-card:hover{ background: #e6f0ff; transform: translateY(-2px); color: #000; }
 .tracking-user-root .ticket-card.selected{ background: #e6c7f0; color: #000; transform: translateY(0); }
 .tracking-user-root .ticket-card.selected:hover{ background: #d8b6e6; }
+
+/* Forzar color negro en todo el contenedor de TrackingUser */
+.tracking-user-root, .tracking-user-root * {
+  color: #000 !important;
+}
