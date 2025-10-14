@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Sidebar from './Sidebar';
 import io from 'socket.io-client';
+import { sendMessage, connect as stompConnect } from '../services/stompService';
 import { getAllUsuarios } from '../services/usuarioService';
 import {getAllIngenieros} from '../services/ingenieroService'
 import { getAllTipoTickets } from '../services/tipoTicketService';
@@ -163,41 +164,44 @@ const Tracking = () => {
 
         try {
             const updated = await updateTicket(payload);
-            // notificar localmente al usuario que elevó el ticket
+            // notificar localmente al usuario que ejecutó la acción (ingeniero)
             addNotification(updated.folio, `Tu ticket ${updated.folio} fue asignado al ingeniero ${updated.ingeniero}`);
 
-            // emitir al servidor para que lo notifique a otros clientes si aplica
-            if (socketRef.current && socketRef.current.connected) {
-                // evento legacy para asignación
-                socketRef.current.emit('assignTicket', { folio: updated.folio, ingeniero: updated.ingeniero });
-                // emitir un evento más descriptivo que el servidor puede reenviar al usuario solicitante
-                let notifyPayload = {
-                    folio: updated.folio,
-                    // preferir datos en ticketActual (vienen del ticket antes de update) ya que el objeto 'updated' puede venir incompleto
-                    usuario_nombre: ticketActual?.usuario ?? updated.usuario ?? updated.user ?? updated.usuario_nombre ?? updated.nombre,
-                    usuario_id: ticketActual?.id_usuario ?? ticketActual?.idUsuario ?? updated.id_usuario ?? updated.idUsuario ?? updated.usuario_id ?? updated.usuarioId ?? updated.id ?? undefined,
-                    usuario_email: ticketActual?.correo ?? ticketActual?.email ?? updated.correo ?? updated.email ?? updated.usuario_correo ?? updated.usuarioEmail ?? undefined,
-                    ingeniero: updated.ingeniero,
-                    estatus: updated.estatus,
-                    id_prioridad: updated.id_prioridad ?? payload.id_prioridad
-                };
+            // emitir al servidor para que lo notifique a otros clientes (por ejemplo al solicitante) vía STOMP
+            try {
+                // conectar STOMP si es necesario
+                await stompConnect({ url: 'http://localhost:8080/ws' });
 
-                // Si faltan identificadores del solicitante, obtener el ticket completo por folio y completar el payload
-                if ((!notifyPayload.usuario_nombre || !notifyPayload.usuario_id) && socketRef.current) {
-                    try {
-                        const full = await getTicketById(updated.folio);
-                        if (full) {
-                            notifyPayload.usuario_nombre = notifyPayload.usuario_nombre || full.usuario || full.nombre || full.usuario_nombre;
-                            notifyPayload.usuario_id = notifyPayload.usuario_id || full.id_usuario || full.idUsuario || full.usuario_id || full.id;
-                            notifyPayload.usuario_email = notifyPayload.usuario_email || full.correo || full.email || full.usuario_correo;
-                        }
-                    } catch (e) {
-                        console.warn('No se pudo obtener ticket por folio para completar notificación:', e);
-                    }
+                // evento legacy: también enviar a /app/assignTicket si el backend lo maneja
+                await sendMessage('/app/assignTicket', { folio: updated.folio, ingeniero: updated.ingeniero });
+
+                // obtener ticket completo para construir payload
+                let fullTicket = null;
+                try {
+                    fullTicket = await getTicketById(updated.folio);
+                    console.log('Tracking: full ticket fetched for notify payload:', fullTicket);
+                } catch (e) {
+                    console.warn('Tracking: no se pudo obtener ticket completo para notificación:', e);
                 }
 
-                console.log('Emitiendo ticketAssigned:', notifyPayload);
-                socketRef.current.emit('ticketAssigned', notifyPayload);
+                const notifyPayload = {
+                    folio: updated.folio,
+                    ingeniero: updated.ingeniero,
+                    estatus: updated.estatus,
+                    id_prioridad: updated.id_prioridad ?? payload.id_prioridad,
+                    usuario_nombre: (fullTicket?.usuario ?? fullTicket?.nombre ?? fullTicket?.usuario_nombre) || ticketActual?.usuario || updated.usuario || undefined,
+                    usuario_id: fullTicket?.id_usuario ?? fullTicket?.idUsuario ?? fullTicket?.usuario_id ?? ticketActual?.id_usuario ?? ticketActual?.idUsuario ?? updated.id_usuario ?? updated.idUsuario ?? undefined,
+                };
+
+                if (notifyPayload.usuario_id) {
+                    notifyPayload.userId = notifyPayload.usuario_id;
+                    notifyPayload.usuarioId = notifyPayload.usuario_id;
+                }
+
+                console.log('Tracking: sending STOMP ticketAssigned payload:', notifyPayload);
+                await sendMessage('/app/ticketAssigned', notifyPayload);
+            } catch (e) {
+                console.error('Tracking: error sending STOMP messages', e);
             }
 
             setTicketActual(updated);

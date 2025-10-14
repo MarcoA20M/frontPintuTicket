@@ -1,6 +1,6 @@
 // src/contexts/NotificationContext.js
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import io from 'socket.io-client';
+import { connect as stompConnect, subscribe as stompSubscribe, disconnect as stompDisconnect, sendMessage } from '../services/stompService';
 
 const NotificationContext = createContext();
 
@@ -21,54 +21,48 @@ export const NotificationProvider = ({ children }) => {
 
     // Configurar socket para recibir notificaciones push desde el servidor
     useEffect(() => {
-        const socket = io('http://localhost:8080');
+        let subAssigned = null;
+        let subUpdated = null;
 
-        // intentar registrar el usuario en el socket para que el backend lo asocie a una room
-        const usuarioGuardado = localStorage.getItem('usuario');
-        const usuarioObj = usuarioGuardado ? JSON.parse(usuarioGuardado) : null;
-        const usuarioId = usuarioObj?.id ?? usuarioObj?.userId ?? usuarioObj?.idUsuario ?? usuarioObj?.id_usuario ?? null;
-        if (usuarioId) {
-            socket.emit('registerUser', { userId: usuarioId });
-            console.log('NotificationProvider: registerUser emitted for', usuarioId);
-        }
+        const setup = async () => {
+            const usuarioGuardado = localStorage.getItem('usuario');
+            const usuarioObj = usuarioGuardado ? JSON.parse(usuarioGuardado) : null;
+            const usuarioId = usuarioObj?.id ?? usuarioObj?.userId ?? usuarioObj?.idUsuario ?? usuarioObj?.id_usuario ?? null;
 
-        // volver a registrar en caso de reconexión
-        socket.on('connect', () => {
-            if (usuarioId) {
-                socket.emit('registerUser', { userId: usuarioId });
-                console.log('NotificationProvider: re-registerUser emitted after connect for', usuarioId);
-            }
-        });
-
-        const onAssigned = (payload) => {
             try {
-                const folio = payload?.folio ?? payload?.ticketId ?? payload?.ticketId;
-                const ingeniero = payload?.ingeniero || payload?.assignedTo || '';
-                const estatus = payload?.estatus || '';
-                const message = `Tu ticket ${folio} fue actualizado. ${ingeniero ? `Ingeniero: ${ingeniero}. ` : ''}${estatus ? `Estatus: ${estatus}.` : ''}`;
-                addNotification(folio || 'N/A', message);
+                await stompConnect({ url: 'http://localhost:8080/ws' });
+
+                // Suscribirse a la cola del usuario (Spring STOMP suele usar /user/queue/...)
+                if (usuarioId) {
+                    subAssigned = await stompSubscribe(`/user/${usuarioId}/queue/ticketAssigned`, (payload) => {
+                        const folio = payload?.folio ?? payload?.ticketId ?? 'N/A';
+                        const ingeniero = payload?.ingeniero || payload?.assignedTo || '';
+                        const estatus = payload?.estatus || '';
+                        const message = `Tu ticket ${folio} fue actualizado. ${ingeniero ? `Ingeniero: ${ingeniero}. ` : ''}${estatus ? `Estatus: ${estatus}.` : ''}`;
+                        addNotification(folio || 'N/A', message);
+                    });
+
+                    subUpdated = await stompSubscribe(`/user/${usuarioId}/queue/ticketUpdated`, (payload) => {
+                        const folio = payload?.folio ?? payload?.ticketId ?? 'N/A';
+                        const message = payload?.message || `Ticket ${folio} ha sido actualizado.`;
+                        addNotification(folio, message);
+                    });
+                } else {
+                    console.warn('NotificationProvider: no usuarioId in localStorage; STOMP user subscriptions not created');
+                }
             } catch (e) {
-                console.error('Error procesando ticketAssigned:', e);
+                console.error('NotificationProvider: error connecting STOMP', e);
             }
         };
 
-        const onUpdated = (payload) => {
-            try {
-                const folio = payload?.folio ?? payload?.ticketId ?? 'N/A';
-                const message = payload?.message || `Ticket ${folio} ha sido actualizado.`;
-                addNotification(folio, message);
-            } catch (e) {
-                console.error('Error procesando ticketUpdated:', e);
-            }
-        };
-
-        socket.on('ticketAssigned', onAssigned);
-        socket.on('ticketUpdated', onUpdated);
+        setup();
 
         return () => {
-            socket.off('ticketAssigned', onAssigned);
-            socket.off('ticketUpdated', onUpdated);
-            socket.disconnect();
+            try {
+                if (subAssigned) subAssigned.unsubscribe();
+                if (subUpdated) subUpdated.unsubscribe();
+                stompDisconnect();
+            } catch (e) {}
         };
     }, []);
 
