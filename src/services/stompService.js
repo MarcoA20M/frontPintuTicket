@@ -5,7 +5,7 @@ import { Client } from '@stomp/stompjs';
 let client = null;
 let connected = false;
 
-export const connect = ({ url = 'http://localhost:8080/ws', onConnect } = {}) => {
+export const connect = ({ url = 'http://localhost:8080/', onConnect } = {}) => {
     if (client && connected) return Promise.resolve(client);
 
     return new Promise((resolve, reject) => {

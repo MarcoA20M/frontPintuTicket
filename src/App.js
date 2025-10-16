@@ -37,7 +37,7 @@ function AppWrapper() {
 }
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(true); //poner false para probar login
+  const [isLoggedIn, setIsLoggedIn] = useState(false); //poner false para probar login
   const [role, setRole] = useState(null);
   const navigate = useNavigate();
 

@@ -3,7 +3,7 @@ import { getAllTipoTickets } from "../services/tipoTicketService";
 // import { createTicket, hayTicketMaestroEnProceso } from "../services/ticketService";
 import { createTicketCreate, getTicketById } from '../services/ticketService';
 import { useNotifications } from '../contexts/NotificationContext';
-import io from 'socket.io-client';
+import { connect as stompConnect, subscribe as stompSubscribe, disconnect as stompDisconnect } from '../services/stompService';
 import '../components/Styles/mainContent.css';
 
 const MainContent = () => {
@@ -50,114 +50,83 @@ const MainContent = () => {
             }
         };
         fetchTipos();
-        // Conectar socket para recibir notificaciones de asignación en tiempo real
-        const socket = io('http://localhost:8080');
-        socket.on('connect', () => {
-            console.log('MainContent socket conectado', socket.id);
-            // registrar el usuario en el servidor para que pueda enrutar notificaciones dirigidas
-            try {
-                if (usuarioLocal) {
-                    const registerPayload = {
-                        userId: usuarioLocal.id ?? usuarioLocal.idUsuario ?? usuarioLocal.id_usuario ?? null,
-                        email: usuarioLocal.correo ?? usuarioLocal.email ?? null,
-                        nombre: usuarioLocal.nombre ?? usuarioLocal.usuario ?? null,
-                    };
-                    socket.emit('registerUser', registerPayload);
-                    console.log('MainContent: registerUser emitido', registerPayload);
-                }
-            } catch (e) {
-                console.warn('Error emitiendo registerUser:', e);
-            }
-        });
+        // Conectar STOMP y suscribirse a topic público y cola privada del usuario
         const notifiedFoliosRef = { current: new Set() };
+        let subPrivate = null;
+        let subTopic = null;
 
-        socket.on('ticketAssigned', async (payload) => {
+        (async () => {
             try {
-                // si el mensaje es para este usuario autenticado, notificar
-                const currentName = usuarioLocal ? (usuarioLocal.nombre || usuarioLocal.usuario || '') : '';
-                const currentEmail = usuarioLocal ? (usuarioLocal.correo || usuarioLocal.email || '') : '';
-                const currentId = usuarioLocal ? (usuarioLocal.id || usuarioLocal.id_usuario || usuarioLocal.idUsuario || '') : '';
+                await stompConnect({ url: 'http://localhost:8080/' });
+                // suscribirse a cola privada: /user/queue/notifications
+                const usuarioName = usuarioLocal ? (usuarioLocal.userName ?? usuarioLocal.username ?? usuarioLocal.user ?? usuarioLocal.nombre ?? null) : null;
+                // if (usuarioName) {
+                //     subPrivate = await stompSubscribe('/user/queue/notifications', async (payload) => {
+                //         try {
+                //             const folio = payload?.folio;
+                //             if (!folio) return;
+                //             if (!notifiedFoliosRef.current.has(folio)) {
+                //                 addNotification(folio, payload?.message || `Tu ticket ${folio} fue actualizado.`);
+                //                 setMessages(prev => [...prev, { text: `🔔 ${payload?.message || `Tu ticket ${folio} fue actualizado.`}`, sender: 'system' }]);
+                //                 notifiedFoliosRef.current.add(folio);
+                //             }
+                //         } catch (e) { console.error('Error handling private notification', e); }
+                //     });
+                // }
 
-                const targetName = payload?.usuario_nombre ? String(payload.usuario_nombre).trim() : '';
-                const targetEmail = payload?.usuario_email ? String(payload.usuario_email).trim() : '';
-                const targetId = payload?.usuario_id ? String(payload.usuario_id).trim() : '';
-
-                const matchesName = currentName && targetName && String(currentName).trim() === targetName;
-                const matchesEmail = currentEmail && targetEmail && String(currentEmail).trim() === targetEmail;
-                const matchesId = currentId && targetId && String(currentId).trim() === targetId;
-
-                const folio = payload?.folio;
-                if ((matchesName || matchesEmail || matchesId) && folio && !notifiedFoliosRef.current.has(folio)) {
-                    addNotification(folio, `Tu ticket ${folio} fue asignado al ingeniero ${payload.ingeniero}.`);
-                    setMessages(prev => [...prev, { text: `🔔 Tu ticket ${folio} fue asignado al ingeniero ${payload.ingeniero} y está en estatus ${payload.estatus}.`, sender: 'system' }]);
-                    notifiedFoliosRef.current.add(folio);
-                } else if (folio && !notifiedFoliosRef.current.has(folio)) {
-                    // fallback: pedir ticket por folio y comprobar owner
+                // suscribirse al topic público /topic/tickets
+                subTopic = await stompSubscribe('/topic/tickets', async (payload) => {
                     try {
-                        const ticket = await getTicketById(folio);
-                        if (ticket) {
-                            const ownerName = ticket.usuario || ticket.nombre || ticket.usuario_nombre || '';
-                            const ownerEmail = ticket.correo || ticket.email || ticket.usuario_correo || '';
-                            const ownerId = ticket.id_usuario || ticket.idUsuario || ticket.usuario_id || ticket.id || '';
-                            if ((ownerName && String(ownerName).trim() === String(currentName).trim()) || (ownerEmail && String(ownerEmail).trim() === String(currentEmail).trim()) || (ownerId && String(ownerId).trim() === String(currentId).trim())) {
-                                addNotification(folio, `Tu ticket ${folio} fue asignado al ingeniero ${payload.ingeniero}.`);
-                                setMessages(prev => [...prev, { text: `🔔 Tu ticket ${folio} fue asignado al ingeniero ${payload.ingeniero} y está en estatus ${payload.estatus}.`, sender: 'system' }]);
-                                notifiedFoliosRef.current.add(folio);
+                        const folio = payload?.folio;
+                        if (!folio) return;
+
+                        const currentName = usuarioLocal ? (usuarioLocal.nombre || usuarioLocal.usuario || '') : '';
+                        const currentEmail = usuarioLocal ? (usuarioLocal.correo || usuarioLocal.email || '') : '';
+                        const currentId = usuarioLocal ? (usuarioLocal.id || usuarioLocal.id_usuario || usuarioLocal.idUsuario || '') : '';
+
+                        const targetName = payload?.usuario ?? payload?.usuario_nombre ?? '';
+                        const targetEmail = payload?.usuario_email ?? payload?.correo ?? '';
+                        const targetId = payload?.usuario_id ?? '';
+
+                        const matchesName = currentName && targetName && String(currentName).trim() === String(targetName).trim();
+                        const matchesEmail = currentEmail && targetEmail && String(currentEmail).trim() === String(targetEmail).trim();
+                        const matchesId = currentId && targetId && String(currentId).trim() === String(targetId).trim();
+
+                        if ((matchesName || matchesEmail || matchesId) && !notifiedFoliosRef.current.has(folio)) {
+                            addNotification(folio, payload?.message || `Tu ticket ${folio} fue asignado al ingeniero ${payload.ingeniero}.`);
+                            // setMessages(prev => [...prev, { text: `🔔 ${payload?.message || `Tu ticket ${folio} fue asignado al ingeniero ${payload.ingeniero}.`}`, sender: 'system' }]);
+                            notifiedFoliosRef.current.add(folio);
+                        } else {
+                            // fallback: check owner via API
+                            try {
+                                const ticket = await getTicketById(folio);
+                                if (ticket) {
+                                    const ownerName = ticket.usuario || ticket.nombre || ticket.usuario_nombre || '';
+                                    const ownerEmail = ticket.correo || ticket.email || ticket.usuario_correo || '';
+                                    const ownerId = ticket.id_usuario || ticket.idUsuario || ticket.usuario_id || ticket.id || '';
+                                    if ((ownerName && String(ownerName).trim() === String(currentName).trim()) || (ownerEmail && String(ownerEmail).trim() === String(currentEmail).trim()) || (ownerId && String(ownerId).trim() === String(currentId).trim())) {
+                                        addNotification(folio, payload?.message || `Tu ticket ${folio} fue asignado al ingeniero ${payload.ingeniero}.`);
+                                        setMessages(prev => [...prev, { text: `🔔 ${payload?.message || `Tu ticket ${folio} fue asignado al ingeniero ${payload.ingeniero}.`}`, sender: 'system' }]);
+                                        notifiedFoliosRef.current.add(folio);
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn('No fue posible obtener ticket por folio para validar owner:', e);
                             }
                         }
-                    } catch (e) {
-                        console.warn('No fue posible obtener ticket por folio para validar owner:', e);
-                    }
-                }
+                    } catch (e) { console.error('Error handling topic ticket payload', e); }
+                });
             } catch (e) {
-                console.error('Error manejando ticketAssigned en MainContent', e);
+                console.error('MainContent: STOMP connect/subscribe error', e);
             }
-        });
+        })();
 
-        // Escuchar assignTicket por compatibilidad con servidores que usan ese evento
-        socket.on('assignTicket', async (payload) => {
-            try {
-                console.log('assignTicket recibido en MainContent:', payload);
-                const currentName = usuarioLocal ? (usuarioLocal.nombre || usuarioLocal.usuario || '') : '';
-                const currentEmail = usuarioLocal ? (usuarioLocal.correo || usuarioLocal.email || '') : '';
-                const currentId = usuarioLocal ? (usuarioLocal.id || usuarioLocal.id_usuario || usuarioLocal.idUsuario || '') : '';
-
-                const targetName = payload?.usuario_nombre ? String(payload.usuario_nombre).trim() : '';
-                const targetEmail = payload?.usuario_email ? String(payload.usuario_email).trim() : '';
-                const targetId = payload?.usuario_id ? String(payload.usuario_id).trim() : '';
-
-                const matchesName = currentName && targetName && String(currentName).trim() === targetName;
-                const matchesEmail = currentEmail && targetEmail && String(currentEmail).trim() === targetEmail;
-                const matchesId = currentId && targetId && String(currentId).trim() === targetId;
-
-                const folio = payload?.folio;
-                if ((matchesName || matchesEmail || matchesId) && folio && !notifiedFoliosRef.current.has(folio)) {
-                    addNotification(folio, `Tu ticket ${folio} fue asignado al ingeniero ${payload.ingeniero}.`);
-                    setMessages(prev => [...prev, { text: `🔔 Tu ticket ${folio} fue asignado al ingeniero ${payload.ingeniero} y está en estatus ${payload.estatus}.`, sender: 'system' }]);
-                    notifiedFoliosRef.current.add(folio);
-                } else if (folio && !notifiedFoliosRef.current.has(folio)) {
-                    try {
-                        const ticket = await getTicketById(folio);
-                        if (ticket) {
-                            const ownerName = ticket.usuario || ticket.nombre || ticket.usuario_nombre || '';
-                            const ownerEmail = ticket.correo || ticket.email || ticket.usuario_correo || '';
-                            const ownerId = ticket.id_usuario || ticket.idUsuario || ticket.usuario_id || ticket.id || '';
-                            if ((ownerName && String(ownerName).trim() === String(currentName).trim()) || (ownerEmail && String(ownerEmail).trim() === String(currentEmail).trim()) || (ownerId && String(ownerId).trim() === String(currentId).trim())) {
-                                addNotification(folio, `Tu ticket ${folio} fue asignado al ingeniero ${payload.ingeniero}.`);
-                                setMessages(prev => [...prev, { text: `🔔 Tu ticket ${folio} fue asignado al ingeniero ${payload.ingeniero} y está en estatus ${payload.estatus}.`, sender: 'system' }]);
-                                notifiedFoliosRef.current.add(folio);
-                            }
-                        }
-                    } catch (e) {
-                        console.warn('No fue posible obtener ticket por folio para validar owner (assignTicket):', e);
-                    }
-                }
-            } catch (e) {
-                console.error('Error manejando assignTicket en MainContent', e);
-            }
-        });
         return () => {
-            socket.disconnect();
+            try {
+                if (subPrivate) subPrivate.unsubscribe();
+                if (subTopic) subTopic.unsubscribe();
+                stompDisconnect();
+            } catch (e) {}
         };
     }, []);
 

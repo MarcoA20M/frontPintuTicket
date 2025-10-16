@@ -60,7 +60,6 @@ export const getAllTickets = async () => {
 
 // --- NUEVO ---
 // Obtener tickets por usuario
-
 export const getTicketsByUsuarioId = async (userId) => {
     try {
         const response = await fetch(`${BASE_URL}/TicketsByUserId?userId=${encodeURIComponent(userId)}`);
@@ -75,9 +74,6 @@ export const getTicketsByUsuarioId = async (userId) => {
         throw error;
     }
 };
-
-
-
 
 
 // Obtener ticket por ID

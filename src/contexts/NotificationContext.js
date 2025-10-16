@@ -32,24 +32,48 @@ export const NotificationProvider = ({ children }) => {
             try {
                 await stompConnect({ url: 'http://localhost:8080/ws' });
 
-                // Suscribirse a la cola del usuario (Spring STOMP suele usar /user/queue/...)
-                if (usuarioId) {
-                    subAssigned = await stompSubscribe(`/user/${usuarioId}/queue/ticketAssigned`, (payload) => {
-                        const folio = payload?.folio ?? payload?.ticketId ?? 'N/A';
-                        const ingeniero = payload?.ingeniero || payload?.assignedTo || '';
-                        const estatus = payload?.estatus || '';
-                        const message = `Tu ticket ${folio} fue actualizado. ${ingeniero ? `Ingeniero: ${ingeniero}. ` : ''}${estatus ? `Estatus: ${estatus}.` : ''}`;
-                        addNotification(folio || 'N/A', message);
-                    });
+                // Suscribirse a la cola privada del usuario y al topic público
+                // cola privada usada por backend: /user/{userName}/queue/notifications -> cliente subscribe a /user/queue/notifications
+                const usuarioName = usuarioObj?.userName ?? usuarioObj?.username ?? usuarioObj?.user ?? usuarioObj?.nombre ?? null;
 
-                    subUpdated = await stompSubscribe(`/user/${usuarioId}/queue/ticketUpdated`, (payload) => {
+                if (usuarioName) {
+                    subAssigned = await stompSubscribe(`/user/queue/notifications`, (payload) => {
+                        // payload enviado por convertAndSendToUser
                         const folio = payload?.folio ?? payload?.ticketId ?? 'N/A';
                         const message = payload?.message || `Ticket ${folio} ha sido actualizado.`;
-                        addNotification(folio, message);
+                        addNotification(folio || 'N/A', message);
                     });
                 } else {
-                    console.warn('NotificationProvider: no usuarioId in localStorage; STOMP user subscriptions not created');
+                    console.warn('NotificationProvider: no usuarioName in localStorage; private STOMP subscription not created');
                 }
+
+                // Suscribirse también al topic público /topic/tickets y filtrar por usuario (si el backend envía usuario en payload)
+                const subTopic = await stompSubscribe(`/topic/tickets`, (payload) => {
+                    try {
+                        // soportar varias formas de identificar al destinatario en el payload
+                        const targetUserId = payload?.usuario_id ?? payload?.userId ?? payload?.usuarioId ?? payload?.user_id ?? null;
+                        const targetUserName = payload?.usuario ?? payload?.user ?? payload?.usuario_nombre ?? null;
+                        const folio = payload?.folio ?? payload?.ticketId ?? 'N/A';
+                        const ingeniero = payload?.ingeniero || '';
+                        const message = payload?.message || `Tu ticket ${folio} fue asignado al ingeniero ${ingeniero}`;
+
+                        // Priorizar coincidencia por ID (más fiable). Si coincide, añadir notificación.
+                        if (usuarioId && targetUserId && String(usuarioId) === String(targetUserId)) {
+                            addNotification(folio || 'N/A', message);
+                            return;
+                        }
+
+                        // Si no hay ID, intentar por nombre de usuario (case-insensitive)
+                        if (usuarioName && targetUserName && String(targetUserName).toLowerCase() === String(usuarioName).toLowerCase()) {
+                            addNotification(folio || 'N/A', message);
+                            return;
+                        }
+                    } catch (e) {
+                        console.error('Error processing public topic payload', e);
+                    }
+                });
+                // guardar subTopic también para limpiar luego
+                subUpdated = subTopic;
             } catch (e) {
                 console.error('NotificationProvider: error connecting STOMP', e);
             }
