@@ -25,6 +25,17 @@ const Tracking = () => {
     // ticket actualmente seleccionado/recibido por socket
     const [ticketActual, setTicketActual] = useState(null);
 
+    // util: formatea un campo usuario que puede ser string o un objeto { nombre, userName, correo, ... }
+    const formatUsuario = (usuario) => {
+        if (!usuario) return '';
+        if (typeof usuario === 'string') return usuario;
+        if (typeof usuario === 'object') {
+            // preferir nombre completo o userName
+            return usuario.nombre || usuario.userName || usuario.username || `${usuario.nombre || ''} ${usuario.apePat || ''} ${usuario.apeMat || ''}`.trim() || JSON.stringify(usuario);
+        }
+        return String(usuario);
+    };
+
     // campos editables
     const [ingenieroEncargado, setIngenieroEncargado] = useState('');
     const [prioridadSeleccionada, setPrioridadSeleccionada] = useState('');
@@ -189,7 +200,7 @@ const Tracking = () => {
                     ingeniero: updated.ingeniero,
                     estatus: updated.estatus,
                     id_prioridad: updated.id_prioridad ?? payload.id_prioridad,
-                    usuario_nombre: (fullTicket?.usuario ?? fullTicket?.nombre ?? fullTicket?.usuario_nombre) || ticketActual?.usuario || updated.usuario || undefined,
+                    usuario_nombre: formatUsuario(fullTicket?.usuario ?? fullTicket?.nombre ?? fullTicket?.usuario_nombre) || formatUsuario(ticketActual?.usuario) || formatUsuario(updated.usuario) || undefined,
                     usuario_id: fullTicket?.id_usuario ?? fullTicket?.idUsuario ?? fullTicket?.usuario_id ?? ticketActual?.id_usuario ?? ticketActual?.idUsuario ?? updated.id_usuario ?? updated.idUsuario ?? undefined,
                 };
 
@@ -225,7 +236,7 @@ const Tracking = () => {
                     {/* Left panel: form */}
                     <div className="left-panel pill">
                         <div className="label">Solicitante</div>
-                        <div className="requester" style={{ background: '#fff', color: '#000', padding: '10px 12px', borderRadius: 8 }}>{ticketActual?.usuario ?? '—'}</div>
+                        <div className="requester" style={{ background: '#fff', color: '#000', padding: '10px 12px', borderRadius: 8 }}>{ticketActual ? (formatUsuario(ticketActual.usuario) || '—') : '—'}</div>
 
                         <div className="label">Ingeniero encargado</div>
                         <select value={ingenieroEncargado} onChange={(e) => setIngenieroEncargado(e.target.value)}>

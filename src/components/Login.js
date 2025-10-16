@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import '../components/Styles/login.css';
 import logo from '../assets/Pintumex.png';
+import logo2 from '../assets/50.png';
 import video from '../assets/video.mp4';
 import { login as authLogin } from '../services/authService';
 import AlertModal from './AlertModal';
