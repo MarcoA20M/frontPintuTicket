@@ -151,8 +151,8 @@ const TrackingUser = () => {
                                                     role="button"
                                                     tabIndex={0}
                                                     onKeyDown={(e) => { if (e.key === 'Enter') { setSelectedFolio(ticket.folio ?? ticket.id); handleView(ticket.folio ?? ticket.id); } }}
-                                                >
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    >
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                                                         <div>
                                                             <div style={{ fontSize: 12, opacity: 0.85 }}>Folio: <strong>{ticket.folio}</strong></div>
                                                             <div style={{ marginTop: 6, fontWeight: 700 }}>{ticket.tipo_ticket ?? ticket.tipo ?? '—'}</div>
