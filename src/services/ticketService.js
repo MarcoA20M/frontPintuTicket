@@ -75,9 +75,23 @@ export const getTicketsByUsuarioId = async (userId) => {
     }
 };
 
+// Obtener tickets por ingeniero
+export const getTicketsByIngenieroId = async (ingenieroId) => {
+    try {
+        const response = await fetch(`${BASE_URL}/TicketsByIngenieroId?ingenieroId=${encodeURIComponent(ingenieroId)}`);
+        if (!response.ok) {
+            const txt = await response.text().catch(() => null);
+            throw new Error(`Error al obtener tickets por ingenieroId (status=${response.status}): ${txt}`);
+        }
+        const tickets = await response.json();
+        return tickets;
+    } catch (error) {
+        console.error('Error en getTicketsByIngenieroId:', error);
+        throw error;
+    }
+};
 
 // Obtener ticket por ID
-// Obtener ticket por folio usando query param ?folio=
 export const getTicketById = async (folio) => {
     try {
         const response = await fetch(`${BASE_URL}/TicketById?folio=${encodeURIComponent(folio)}`);

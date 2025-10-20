@@ -5,7 +5,7 @@
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     display: flex;
     flex-direction: column;
-    align-items: flex-start; /* Alinea el contenido a la izquierda */
+    align-items: stretch; /* Permite que los elementos ocupen todo el ancho */
     width: 100%;
     /* Aquí puedes colocar el gradiente del fondo si es necesario */
  
