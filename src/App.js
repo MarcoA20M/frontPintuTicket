@@ -13,6 +13,7 @@ import Admin from './components/Admin';
 import Trac from './components/Tracking';
 import TrackUsr from './components/TrackingUser';
 import Table  from './components/TicketTable'
+import TrakingEng from './components/TrackingEngineer'
 import './components/App.css';
 import { NotificationProvider } from './contexts/NotificationContext';
 
@@ -68,7 +69,7 @@ function App() {
       {/* Sidebar dinámico 
       mover el 2 de lugar para que este como debe
       */}
-      {role === 'INGENIERO' ? <Sidebar /> : <Sidebar2 />} 
+      {role === 'INGENIERO' ? <Sidebar2 /> : <Sidebar />} 
 
       <div className="main-content-wrapper">
         <Header />
@@ -82,6 +83,7 @@ function App() {
           <Route path="/seguimiento" element={<Trac />} />
           <Route path="/seguimientoUsr" element={<TrackUsr />} />
           <Route path="/tabla" element={<Table />} />
+          <Route path="/ticketsIngeniero" element={<TrakingEng />} />
         </Routes>
       </div>
     </div>

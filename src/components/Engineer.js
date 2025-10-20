@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import './Styles/engineer.css';
-import { getAllTickets } from '../services/ticketService';
+import { getAllTickets,getTicketsByIngenieroId } from '../services/ticketService';
 
 
 const Engineer = () => {
     const [usuario, setUsuario] = useState(null);
+    const navigate = useNavigate();
 
     useEffect(() => {
         const usuarioGuardado = localStorage.getItem('usuario');
@@ -20,8 +22,43 @@ const Engineer = () => {
     useEffect(() => {
         const fetchTickets = async () => {
             try {
-                const all = await getAllTickets();
-                setTickets(all || []);
+                // intentar obtener identificador del ingeniero desde localStorage
+                const raw = localStorage.getItem('usuario');
+                let loaded = [];
+                if (raw) {
+                    try {
+                        const u = JSON.parse(raw);
+                        const candidates = [u.id, u.idUsuario, u.id_ingeniero, u.userId, u.userName, u.user, u.username, u.nombre].filter(Boolean).map(String);
+                        const uniq = Array.from(new Set(candidates));
+                        let got = false;
+                        for (const c of uniq) {
+                            try {
+                                const t = await getTicketsByIngenieroId(c);
+                                if (Array.isArray(t)) {
+                                    loaded = t;
+                                    got = true;
+                                    break;
+                                }
+                            } catch (e) {
+                                console.warn('Engineer: intento getTicketsByIngenieroId falló para', c, e?.message || e);
+                            }
+                        }
+                        if (!got) {
+                            // fallback: obtener todos
+                            const all = await getAllTickets();
+                            loaded = all || [];
+                        }
+                    } catch (e) {
+                        console.error('Engineer: error parseando usuario o llamando service:', e);
+                        const all = await getAllTickets();
+                        loaded = all || [];
+                    }
+                } else {
+                    const all = await getAllTickets();
+                    loaded = all || [];
+                }
+
+                setTickets(loaded);
             } catch (err) {
                 console.error('No se pudieron cargar tickets en Engineer:', err);
             }
@@ -108,12 +145,14 @@ const Engineer = () => {
                         }}>
                             <h2 style={{ color: '#fff', marginTop: 0, fontWeight: 600, fontSize: '2rem', textAlign: 'center', marginBottom: '18px' }}>Tus tickets urgentes</h2>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                                {tickets.filter(t => usuario && t.ingeniero === usuario.nombre && t.prioridad === 'Alta').map((ticket) => (
+                                {tickets.filter(t => usuario && t.ingeniero === usuario.nombre && t.prioridad === 'Alta')
+                                    .slice().sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion))
+                                    .map((ticket) => (
                                     <div key={ticket.folio} style={{ background: '#ffd1db', borderRadius: '22px', padding: '22px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
                                         <div style={{ fontWeight: 700, fontSize: '1.6rem', color: '#222', marginBottom: '8px' }}>{ticket.tipo_ticket}</div>
                                         <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '2px' }}>{ticket.usuario}</div>
                                         <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '12px' }}>{ticket.area ?? ticket.departamento ?? ''}</div>
-                                        <button style={{ position: 'absolute', right: '24px', top: '24px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: '12px', padding: '10px 24px', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>Ver mas</button>
+                                        <button onClick={() => navigate(`/ticketsIngeniero?folio=${encodeURIComponent(ticket.folio ?? ticket.id)}`)} style={{ position: 'absolute', right: '24px', top: '24px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: '12px', padding: '10px 24px', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>Ver mas</button>
                                         <div style={{ position: 'absolute', right: '24px', bottom: '18px', color: '#222', fontWeight: 500, fontSize: '1.1rem' }}>{new Date(ticket.fechaCreacion).toLocaleDateString()}</div>
                                     </div>
                                 ))}
@@ -132,12 +171,14 @@ const Engineer = () => {
                         }}>
                             <h2 style={{ color: '#fff', marginTop: 0, fontWeight: 600, fontSize: '2rem', textAlign: 'center', marginBottom: '18px' }}>Tus tickets asignados</h2>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                                {tickets.filter(t => usuario && t.ingeniero === usuario.nombre).map((ticket) => (
+                                {tickets.filter(t => usuario && t.ingeniero === usuario.nombre)
+                                    .slice().sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion))
+                                    .map((ticket) => (
                                     <div key={ticket.folio} style={{ background: '#ffd1db', borderRadius: '22px', padding: '22px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
                                         <div style={{ fontWeight: 700, fontSize: '1.6rem', color: '#222', marginBottom: '8px' }}>{ticket.tipo_ticket}</div>
                                         <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '2px' }}>{ticket.usuario}</div>
                                         <div style={{ color: '#222', fontSize: '1.1rem', marginBottom: '12px' }}>{ticket.area ?? ticket.departamento ?? ''}</div>
-                                        <button style={{ position: 'absolute', right: '24px', top: '24px', background: '#3ce73cff', color: '#fff', border: 'none', borderRadius: '12px', padding: '10px 24px', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>Ver mas</button>
+                                        <button onClick={() => navigate(`/ticketsIngeniero?folio=${encodeURIComponent(ticket.folio ?? ticket.id)}`)} style={{ position: 'absolute', right: '24px', top: '24px', background: '#3ce73cff', color: '#fff', border: 'none', borderRadius: '12px', padding: '10px 24px', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>Ver mas</button>
                                         <div style={{ position: 'absolute', right: '24px', bottom: '18px', color: '#222', fontWeight: 500, fontSize: '1.1rem' }}>{new Date(ticket.fechaCreacion).toLocaleDateString()}</div>
                                     </div>
                                 ))}

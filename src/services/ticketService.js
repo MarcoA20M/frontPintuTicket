@@ -78,10 +78,11 @@ export const getTicketsByUsuarioId = async (userId) => {
 // Obtener tickets por ingeniero
 export const getTicketsByIngenieroId = async (ingenieroId) => {
     try {
-        const response = await fetch(`${BASE_URL}/TicketsByIngenieroId?ingenieroId=${encodeURIComponent(ingenieroId)}`);
+        // El backend espera el parámetro 'engineerId' en la query string
+        const response = await fetch(`${BASE_URL}/TicketsByIngenieroId?engineerId=${encodeURIComponent(ingenieroId)}`);
         if (!response.ok) {
             const txt = await response.text().catch(() => null);
-            throw new Error(`Error al obtener tickets por ingenieroId (status=${response.status}): ${txt}`);
+            throw new Error(`Error al obtener tickets por engineerId (status=${response.status}): ${txt}`);
         }
         const tickets = await response.json();
         return tickets;

@@ -175,21 +175,21 @@ const TrackingUser = () => {
                                     </div>
 
                                     {/* Paginación estilo Bootstrap */}
-                                    <nav aria-label="Page navigation example" style={{ marginTop: 12 }}>
-                                        <ul className="pagination justify-content-end" style={{ display: 'flex', gap: 6, listStyle: 'none', padding: 0 }}>
-                                            <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`} onClick={() => currentPage > 1 && goToPage(currentPage - 1)} style={{ cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}>
-                                                <a className="page-link" href="#" tabIndex={-1} aria-disabled={currentPage === 1}>Previous</a>
+                                    <nav aria-label="Paginación tickets" style={{ marginTop: 12 }}>
+                                        <ul className="pagination justify-content-center">
+                                            <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                                                <button className="page-link" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} aria-label="Anterior">&laquo;</button>
                                             </li>
-                                            {Array.from({ length: totalPages }).map((_, idx) => {
-                                                const p = idx + 1;
+                                            {Array.from({ length: totalPages }).map((_, i) => {
+                                                const p = i + 1;
                                                 return (
-                                                    <li key={p} className={`page-item ${p === currentPage ? 'active' : ''}`} onClick={() => goToPage(p)} style={{ cursor: 'pointer' }}>
-                                                        <a className="page-link" href="#">{p}</a>
+                                                    <li key={p} className={`page-item ${p === currentPage ? 'active' : ''}`}>
+                                                        <button className="page-link" onClick={() => setCurrentPage(p)}>{p}</button>
                                                     </li>
                                                 );
                                             })}
-                                            <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`} onClick={() => currentPage < totalPages && goToPage(currentPage + 1)} style={{ cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}>
-                                                <a className="page-link" href="#">Next</a>
+                                            <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                                                <button className="page-link" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} aria-label="Siguiente">&raquo;</button>
                                             </li>
                                         </ul>
                                     </nav>
