@@ -77,13 +77,39 @@ body {
     line-height: 1.4;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     animation: fadeIn 0.3s ease;
+    color: #333;
+    
 }
 
 .message-bubble.user {
     background-color: var(--chat-bg-user);
     margin-left: auto;
-    color: var(--text-color-dark);
+    color: #000; /* texto negro para burbujas de usuario */
     border-bottom-right-radius: 5px;
+}
+
+/* Asegurar que elementos internos hereden color negro */
+.message-bubble.user p,
+.message-bubble.user span,
+.message-bubble.user strong,
+.message-bubble.user .message-text,
+.message-bubble.user .message-text-line,
+.message-bubble.user .timestamp {
+    color: #000;
+}
+
+/* Fallback: cualquier elemento dentro de user bubble */
+.message-bubble.user * {
+    color: #000;
+}
+
+
+.message-bubble.selected {
+    background-color: #e9e2e0;
+}
+
+.message-bubble.selected p{
+    color: black;
 }
 
 .message-bubble.system {
@@ -95,10 +121,12 @@ body {
 
 .message-bubble.system p {
     margin-bottom: 0.5rem;
+    
 }
 
 .message-bubble.system p:last-child {
     margin-bottom: 0;
+    
 }
 
 @keyframes fadeIn {

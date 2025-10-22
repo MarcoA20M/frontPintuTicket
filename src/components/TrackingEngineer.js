@@ -7,6 +7,7 @@ import { getAllPrioridad } from '../services/prioridad';
 import { getTicketsByIngenieroId, getTicketById, updateTicket } from '../services/ticketService';
 // import { stompConnect, sendMessage, stompDisconnect } from '../services/stompService';
 import { useNotifications } from '../contexts/NotificationContext';
+import AlertModal from './AlertModal';
 
 const TrackingEngineer = () => {
     const { addNotification } = useNotifications();
@@ -38,6 +39,8 @@ const TrackingEngineer = () => {
     const [prioridadSeleccionada, setPrioridadSeleccionada] = useState('');
     const [tipoSeleccionado, setTipoSeleccionado] = useState('');
     const [estatusSeleccionado, setEstatusSeleccionado] = useState('Abierto');
+    const [comentario, setComentario] = useState('');
+    const [modal, setModal] = useState({ visible: false, title: '', message: '' });
 
     // obtener usuario autenticado desde localStorage
     const getLoggedIngenieroId = () => {
@@ -158,28 +161,33 @@ const TrackingEngineer = () => {
 
     const handleGuardar = async () => {
         if (!ticketActual) return;
+        // Construir payload compatible con TicketDTOUpdate esperado por el backend
+        const prioridadNombre = (prioridades.find(p => String(p.id_prioridad) === String(prioridadSeleccionada)) || {}).nombre || (typeof prioridadSeleccionada === 'string' ? prioridadSeleccionada : undefined);
         const payload = {
-            id: ticketActual.id ?? ticketActual.folio,
             folio: ticketActual.folio,
-            ingeniero: ingenieroEncargado,
-            prioridad: (prioridades.find(p => String(p.id_prioridad) === String(prioridadSeleccionada)) || {}).nombre || (typeof prioridadSeleccionada === 'string' ? prioridadSeleccionada : undefined),
-            id_prioridad: prioridadSeleccionada ? Number(prioridadSeleccionada) : undefined,
-            tipo_ticket: tipoSeleccionado,
+            ingeniero: ingenieroEncargado || undefined,
+            prioridad: prioridadNombre,
             estatus: estatusSeleccionado,
+            comentarios: comentario || undefined,
         };
 
         try {
+            // log para depuración: confirmar qué se envía al backend
+            
             const updated = await updateTicket(payload);
+            // log para depuración: confirmar la respuesta del backend
+            
             addNotification(updated.folio, `Tu ticket ${updated.folio} fue actualizado.`);
 
                 // No usamos STOMP/sockets aquí por ahora
 
             setTicketActual(updated);
-            alert('Ticket actualizado.');
+            // mostrar modal personalizado
+            setModal({ visible: true, title: 'Ticket actualizado', message: `El ticket ${updated.folio} fue actualizado correctamente.` });
             await loadTicketsForLoggedIngeniero();
         } catch (err) {
             console.error('Error guardando en TrackingEngineer:', err);
-            alert('Error al guardar.');
+            setModal({ visible: true, title: 'Error', message: `No se pudo actualizar el ticket. ${err?.message || ''}` });
         }
     };
 
@@ -190,6 +198,7 @@ const TrackingEngineer = () => {
             setPrioridadSeleccionada('');
             setTipoSeleccionado('');
             setEstatusSeleccionado('Abierto');
+            setComentario('');
             return;
         }
 
@@ -205,6 +214,8 @@ const TrackingEngineer = () => {
 
         setTipoSeleccionado(ticketActual.tipo_ticket || ticketActual.tipo || '');
         setEstatusSeleccionado(ticketActual.estatus || 'Abierto');
+        // sincronizar comentario si existe en el ticket
+        setComentario(ticketActual.comentario ?? ticketActual.comentario ?? ticketActual.note ?? '');
     }, [ticketActual, prioridades]);
 
     return (
@@ -257,6 +268,16 @@ const TrackingEngineer = () => {
                                 </>
                             )}
                         </select>
+                        <div className="label">Comentarios</div>
+                        <div className="mb-2">
+                            <textarea
+                                className="form-control"
+                                rows={3}
+                                placeholder="Agregar algún comentario"
+                                value={comentario}
+                                onChange={(e) => setComentario(e.target.value)}
+                            />
+                        </div>
 
                         <div className="left-actions">
                             <button onClick={handleGuardar} className="btn btn-success">Guardar</button>
@@ -362,15 +383,14 @@ const TrackingEngineer = () => {
                             })()}
                         </div>
 
-                        <div className="footer-input">
-                            <input placeholder="Agregar algún comentario" />
-                            <button>↑</button>
+                        
+                            </div>
                         </div>
+                    {/* Modal personalizado para mensajes */}
+                    <AlertModal visible={modal.visible} title={modal.title} message={modal.message} onClose={() => setModal({ visible: false, title: '', message: '' })} />
                     </div>
                 </div>
-            </div>
-        </div>
-    );
-};
+            );
+        };
 
-export default TrackingEngineer;
+        export default TrackingEngineer;

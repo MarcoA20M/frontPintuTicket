@@ -132,7 +132,8 @@ const MainContent = () => {
 
     const handleTipoClick = (tipo) => {
         setTicketSeleccionado(tipo);
-        setMessages(prev => [...prev, { text: `Has seleccionado: ${tipo.tipo}`, sender: "user" }]);
+        // marcar este mensaje como 'selected' para estilos especiales
+        setMessages(prev => [...prev, { text: `Has seleccionado: ${tipo.tipo}`, sender: "user", selected: true }]);
         setShowBackButton(true);
         
         if (tipo.tipo === "Requerimiento") {
@@ -147,7 +148,7 @@ const MainContent = () => {
     const handleRequerimientoSubClick = (subTipo) => {
         setSubTipoSeleccionado(subTipo);
         setSelectedRequerimiento(false);
-        setMessages(prev => [...prev, { text: `Has seleccionado: ${subTipo}`, sender: "user" }, { text: `Describe tu problema relacionado con: ${subTipo}`, sender: "system" }]);
+        setMessages(prev => [...prev, { text: `Has seleccionado: ${subTipo}`, sender: "user", selected: true }, { text: `Describe tu problema relacionado con: ${subTipo}`, sender: "system" }]);
     };
     
     // Función para regresar al paso anterior, reseteando todo
@@ -230,7 +231,7 @@ const MainContent = () => {
             <h1>¿Cuál es tu necesidad?</h1>
             <div className="chat-history">
                 {messages.map((msg, idx) => (
-                    <div key={idx} className={`message-bubble ${msg.sender}`}>
+                    <div  key={idx} className={`message-bubble ${msg.sender} ${msg.selected ? 'selected' : ''}`}>
                         {msg.text.split("\n").map((line, i) => (
                             <p key={i} style={{ margin: 0 }}>{line}</p>
                         ))}
