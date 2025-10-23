@@ -7,7 +7,7 @@ import { getAllPrioridad } from '../services/prioridad';
 import { getTicketsByIngenieroId, getTicketById, updateTicket } from '../services/ticketService';
 // import { stompConnect, sendMessage, stompDisconnect } from '../services/stompService';
 import { useNotifications } from '../contexts/NotificationContext';
-import AlertModal from './AlertModal';
+import AlertModal from './Alerts/AlertModal';
 
 const TrackingEngineer = () => {
     const { addNotification } = useNotifications();

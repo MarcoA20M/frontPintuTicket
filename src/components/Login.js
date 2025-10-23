@@ -5,7 +5,7 @@ import logo from '../assets/Pintumex.png';
 import logo2 from '../assets/50.png';
 import video from '../assets/video.mp4';
 import { login as authLogin } from '../services/authService';
-import AlertModal from './AlertModal';
+import AlertModal from './Alerts/AlertModalError';
 
 const LoginPage = ({ onLoginSuccess }) => {
   const [showLoginForm, setShowLoginForm] = useState(false);
