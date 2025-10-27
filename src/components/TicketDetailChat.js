@@ -3,68 +3,81 @@ import { useParams } from "react-router-dom";
 import { getUsuarioById } from "../services/usuarioService";
 import { getTicketById } from "../services/ticketService";
 import { getHistorialByFolio } from "../services/historial";
+import { useNotifications } from '../contexts/NotificationContext';
 
 const TicketDetailChat = () => {
   const { folio } = useParams();
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [historial, setHistorial] = useState([]);
+  const { subscribeNotifications, notifications } = useNotifications();
+
+  // carga inicial del ticket y del historial al montar o cuando cambie el folio
+  useEffect(() => {
+    let mounted = true;
+    const fetchAll = async () => {
+      setLoading(true);
+      try {
+        const [ticketResp, histResp] = await Promise.all([
+          getTicketById(folio).catch(e => { console.warn('getTicketById error', e); return null; }),
+          getHistorialByFolio(folio).catch(e => { console.warn('getHistorialByFolio error', e); return null; })
+        ]);
+
+        if (!mounted) return;
+        if (ticketResp) setTicket(ticketResp);
+        if (histResp) setHistorial(Array.isArray(histResp) ? histResp : (histResp ? [histResp] : []));
+      } catch (e) {
+        console.error('Error cargando ticket/historial', e);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    if (folio) fetchAll();
+    else setLoading(false);
+
+    return () => { mounted = false; };
+  }, [folio]);
+
+
+  
   const usuarioGuardado = localStorage.getItem('usuario');
   const usuarioObj = usuarioGuardado ? JSON.parse(usuarioGuardado) : null;
   const usuarioId = usuarioObj?.id ?? usuarioObj?.userId ?? usuarioObj?.idUsuario ?? usuarioObj?.id_usuario ?? null;
-
   useEffect(() => {
-    const fetchTicket = async () => {
-      try {
-        // intentar endpoint directo por folio primero
-        try {
-          const t = await getTicketById(folio);
-          if (t) {
-            setTicket(t);
-            // cargar historial asociado al folio
-            try {
-              const h = await getHistorialByFolio(folio);
-              setHistorial(Array.isArray(h) ? h : (h ? [h] : []));
-            } catch (err) {
-              console.warn('No se pudo cargar historial por folio:', err);
-              setHistorial([]);
-            }
-            setLoading(false);
-            return;
-          }
-        } catch (err) {
-          // no encontrado por folio, intentar por usuario
-        }
+    if (!subscribeNotifications) return undefined;
 
-        if (!usuarioId) {
-          setTicket(null);
-          setLoading(false);
-          return;
-        }
-
-        const usuarioData = await getUsuarioById(usuarioId);
-        const tickets = usuarioData?.tickets || usuarioData?.misTickets || usuarioData?.ticketsUsuario || [];
-        const foundTicket = (tickets || []).find(t => String(t.folio) === String(folio));
-        setTicket(foundTicket || null);
-        // si encontramos el ticket, cargar historial por folio
-        if (foundTicket) {
-          try {
-            const h2 = await getHistorialByFolio(folio);
-            setHistorial(Array.isArray(h2) ? h2 : (h2 ? [h2] : []));
-          } catch (err) {
-            console.warn('No se pudo cargar historial por folio (buscando en usuario):', err);
-            setHistorial([]);
-          }
-        } else {
-          setHistorial([]);
-        }
-        setLoading(false);
-      } catch (error) {
-        console.error("Error al cargar el ticket:", error);
+    const unsub = subscribeNotifications((notif) => {
+      console.debug('[TicketDetailChat] received notif', notif);
+      if (!notif) return;
+      const notifFolio = String(notif.ticketId ?? notif.folio ?? '');
+      if (notifFolio && String(folio) === notifFolio) {
+        // opción A: re-fetch historial completo
+        getHistorialByFolio(folio).then(h => setHistorial(Array.isArray(h) ? h : (h ? [h] : []))).catch(e => console.warn(e));
+        // opción B: agregar la notificación directamente al historial (si payload tiene detalle)
+        // setHistorial(prev => [...prev, { detalle: notif.message, usuario: notif.usuario, fecha: new Date().toISOString() }]);
+        // y opcionalmente re-fetch del ticket para actualizar estatus/ingeniero
+        getTicketById(folio).then(t => setTicket(t)).catch(() => {});
       }
+    });
+    return () => {
+      try { if (typeof unsub === 'function') unsub(); }
+      catch(e){}
     };
-    fetchTicket();
-  }, [folio, usuarioId]);
+  }, [folio, subscribeNotifications]);
+
+  // Backup: si por alguna razón la suscripción no dispara, reaccionar a cambios en el array `notifications`
+  useEffect(() => {
+    if (!Array.isArray(notifications) || notifications.length === 0) return;
+    try {
+      const matched = notifications.find(n => String(n.ticketId ?? n.folio ?? '') === String(folio));
+      if (matched) {
+        console.debug('[TicketDetailChat] matched notification via notifications array', matched);
+        getHistorialByFolio(folio).then(h => setHistorial(Array.isArray(h) ? h : (h ? [h] : []))).catch(e => console.warn(e));
+        getTicketById(folio).then(t => setTicket(t)).catch(() => {});
+      }
+    } catch (e) { console.warn('Error checking notifications array', e); }
+  }, [notifications, folio]);
 
   if (loading) return <p>Cargando ticket...</p>;
   if (!ticket) return <p>Ticket no encontrado</p>;

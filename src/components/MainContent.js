@@ -93,8 +93,7 @@ const MainContent = () => {
                         const matchesId = currentId && targetId && String(currentId).trim() === String(targetId).trim();
 
                         if ((matchesName || matchesEmail || matchesId) && !notifiedFoliosRef.current.has(folio)) {
-                            addNotification(folio, payload?.message || `Tu ticket ${folio} fue asignado al ingeniero ${payload.ingeniero}.`);
-                            // setMessages(prev => [...prev, { text: `🔔 ${payload?.message || `Tu ticket ${folio} fue asignado al ingeniero ${payload.ingeniero}.`}`, sender: 'system' }]);
+                            addNotification(folio, payload?.message || `Tu ticket con folio ${folio} fue actualizado por el ingeniero ${payload.ingeniero}.`);
                             notifiedFoliosRef.current.add(folio);
                         } else {
                             // fallback: check owner via API
@@ -105,8 +104,8 @@ const MainContent = () => {
                                     const ownerEmail = ticket.correo || ticket.email || ticket.usuario_correo || '';
                                     const ownerId = ticket.id_usuario || ticket.idUsuario || ticket.usuario_id || ticket.id || '';
                                     if ((ownerName && String(ownerName).trim() === String(currentName).trim()) || (ownerEmail && String(ownerEmail).trim() === String(currentEmail).trim()) || (ownerId && String(ownerId).trim() === String(currentId).trim())) {
-                                        addNotification(folio, payload?.message || `Tu ticket ${folio} fue asignado al ingeniero ${payload.ingeniero}.`);
-                                        setMessages(prev => [...prev, { text: `🔔 ${payload?.message || `Tu ticket ${folio} fue asignado al ingeniero ${payload.ingeniero}.`}`, sender: 'system' }]);
+                                        addNotification(folio, payload?.message || `Tu ticket con el folio${folio} fue actualizado por ${payload.ingeniero}.`);
+                                        //setMessages(prev => [...prev, { text: `🔔 ${payload?.message || `Tu ticket ${folio} fue asignado al ingeniero ${payload.ingeniero}.`}`, sender: 'system' }]);
                                         notifiedFoliosRef.current.add(folio);
                                     }
                                 }
@@ -202,7 +201,7 @@ const MainContent = () => {
             const createdTicket = await createTicketCreate(requestBody);
             addNotification(
                 createdTicket.folio,
-                `Tu nuevo ticket ha sido creado y asignado al ingeniero ${createdTicket.ingeniero}.`
+                `Tu nuevo ticket ha sido creado.`
             );
 
             setMessages(prev => [...prev, {

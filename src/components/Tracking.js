@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Sidebar from './Sidebar';
+import AlertModal from './Alerts/AlertModal';
 import io from 'socket.io-client';
 import { sendMessage, connect as stompConnect } from '../services/stompService';
 import { getAllUsuarios } from '../services/usuarioService';
@@ -24,6 +25,8 @@ const Tracking = () => {
 
     // ticket actualmente seleccionado/recibido por socket
     const [ticketActual, setTicketActual] = useState(null);
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertData, setAlertData] = useState({ title: '', message: '' });
 
     // util: formatea un campo usuario que puede ser string o un objeto { nombre, userName, correo, ... }
     const formatUsuario = (usuario) => {
@@ -176,7 +179,7 @@ const Tracking = () => {
         try {
             const updated = await updateTicket(payload);
             // notificar localmente al usuario que ejecutó la acción (ingeniero)
-            addNotification(updated.folio, `Tu ticket ${updated.folio} fue asignado al ingeniero ${updated.ingeniero}`);
+            addNotification(updated.folio, `Tu ticket ${updated.folio} FUE ACTUALIZADO POR: ${updated.ingeniero}`);
 
             // emitir al servidor para que lo notifique a otros clientes (por ejemplo al solicitante) vía STOMP
             try {
@@ -216,16 +219,27 @@ const Tracking = () => {
             }
 
             setTicketActual(updated);
-            alert('Ticket actualizado y notificación enviada.');
+            // mostrar modal personalizado en vez de alert nativo
+            setAlertData({ title: 'Ticket actualizado', message: `Ticket ${updated.folio} actualizado y notificación enviada.` });
+            setAlertVisible(true);
         } catch (err) {
             console.error('Error guardando actualización del ticket:', err);
-            alert('Error al guardar la asignación.');
+            const detail = err && err.message ? err.message : 'Error al guardar la asignación.';
+            setAlertData({ title: 'Error', message: `No se pudo actualizar el ticket: ${detail}` });
+            setAlertVisible(true);
         }
     };
 
     return (
         <div className="tracking-root">
-            <div className="tracking-main">
+            <AlertModal
+                visible={alertVisible}
+                title={alertData.title}
+                message={alertData.message}
+                onClose={() => setAlertVisible(false)}
+                ebColor="#7bd389ff"
+                />
+                <div className="tracking-main">
                 {/* Header */}
                 <div className="tracking-header">
                     <h2>Asignación de ticket</h2>

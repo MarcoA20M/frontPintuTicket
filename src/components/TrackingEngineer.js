@@ -169,6 +169,11 @@ const TrackingEngineer = () => {
             prioridad: prioridadNombre,
             estatus: estatusSeleccionado,
             comentarios: comentario || undefined,
+            // incluir datos del usuario solicitante para que el backend pueda notificarlo
+            usuario: (typeof ticketActual.usuario === 'string')
+                ? ticketActual.usuario
+                : (ticketActual.usuario?.userName ?? ticketActual.usuario?.username ?? ticketActual.usuario?.nombre ?? ticketActual.usuario ?? undefined),
+            usuarioId: ticketActual.usuario?.id ?? ticketActual.usuarioId ?? ticketActual.id_usuario ?? undefined,
         };
 
         try {
@@ -177,7 +182,7 @@ const TrackingEngineer = () => {
             const updated = await updateTicket(payload);
             // log para depuración: confirmar la respuesta del backend
             
-            addNotification(updated.folio, `Tu ticket ${updated.folio} fue actualizado.`);
+            addNotification(updated.folio, `Tu ticket con folio: ${updated.folio} fue actualizado.`);
 
                 // No usamos STOMP/sockets aquí por ahora
 
