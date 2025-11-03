@@ -245,9 +245,10 @@ const TrackingEngineer = () => {
 
                         <div className="label">Prioridad</div>
                         <select value={prioridadSeleccionada} onChange={(e) => setPrioridadSeleccionada(e.target.value)}>
-                            <option value="">Sin prioridad</option>
-                            {prioridades.map(p => (
-                                <option key={p.id_prioridad ?? p.id ?? p.nombre} value={String(p.id_prioridad ?? p.id ?? p.nombre)}>{p.nombre ?? p.prioridad ?? p}</option>
+                            <option style={{color: "black"}} value="">Sin prioridad</option>
+                            
+                            {prioridades.map(p => ( 
+                                <option style={{color: "black"}} key={p.id_prioridad ?? p.id ?? p.nombre} value={String(p.id_prioridad ?? p.id ?? p.nombre)}>{p.nombre ?? p.prioridad ?? p}</option>
                             ))}
                         </select>
 
@@ -255,7 +256,7 @@ const TrackingEngineer = () => {
                         <select value={tipoSeleccionado} onChange={(e) => setTipoSeleccionado(e.target.value)}>
                             <option value="">Selecciona un tipo</option>
                             {tipos.map(t => (
-                                <option key={t.idTipoTicket ?? t.id} value={t.tipo}>{t.tipo}</option>
+                                <option style={{color: "black"}} key={t.idTipoTicket ?? t.id} value={t.tipo}>{t.tipo}</option>
                             ))}
                         </select>
 
@@ -263,7 +264,7 @@ const TrackingEngineer = () => {
                         <select value={estatusSeleccionado} onChange={(e) => setEstatusSeleccionado(e.target.value)}>
                             {estatusList && estatusList.length > 0 ? (
                                 estatusList.map(es => (
-                                    <option key={es.id_estatus ?? es.id} value={es.nombre ?? es.estatus ?? es.value}>{es.nombre ?? es.estatus ?? es.value}</option>
+                                    <option style={{color: "black"}} key={es.id_estatus ?? es.id} value={es.nombre ?? es.estatus ?? es.value}>{es.nombre ?? es.estatus ?? es.value}</option>
                                 ))
                             ) : (
                                 <>
@@ -353,6 +354,7 @@ const TrackingEngineer = () => {
                                                         <div>
                                                             <div style={{ fontSize: 12, opacity: 0.85 }}>Folio: <strong>{t.folio ?? t.id}</strong></div>
                                                             <div style={{ marginTop: 6, fontWeight: 700 }}>{t.tipo_ticket ?? t.tipo ?? '—'}</div>
+                                                            <div style={{ marginTop: 6 }}>{t.descripcion ?? t.description ?? '—'}</div>
                                                         </div>
                                                         <div style={{ textAlign: 'right' }}>
                                                             <div style={{ fontSize: 13 }}>{t.usuario ?? t.nombre ?? 'Solicitante'}</div>

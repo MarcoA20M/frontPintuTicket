@@ -161,9 +161,24 @@ const TrackingUser = () => {
                                                         <div style={{ textAlign: 'right' }}>
                                                             <div style={{ fontSize: 13 }}>{ticket.usuario ?? ticket.nombre ?? ticket.userName}</div>
                                                             <div style={{ fontSize: 12, opacity: 0.8 }}>{ticket.fechaCreacion ? new Date(ticket.fechaCreacion).toLocaleString() : ''}</div>
-                                                            <div style={{ marginTop: 8 }}>
-                                                                <span style={{ padding: '4px 8px', borderRadius: 6, fontWeight: 700, background: ticket.estatus === 'Abierto' ? '#70e9aaff' : '#ef7d7dff', color: ticket.estatus === 'Abierto' ? '#166534' : '#991b1b' }}>{ticket.estatus}</span>
-                                                            </div>
+                                                                            <div style={{ marginTop: 8 }}>
+                                                                                {
+                                                                                    // Determinar estilo del badge según estatus (case-insensitive)
+                                                                                    (() => {
+                                                                                        const s = String(ticket.estatus ?? '').toLowerCase().trim();
+                                                                                        // Amarillo para estados que contengan 'progres' (ej. 'En progreso')
+                                                                                        if (s.includes('progres')) {
+                                                                                            return <span style={{ padding: '4px 8px', borderRadius: 6, fontWeight: 700, background: '#fff3b0', color: '#5a3e00' }}>{ticket.estatus}</span>;
+                                                                                        }
+                                                                                        // Verde para 'abierto'
+                                                                                        if (s === 'abierto') {
+                                                                                            return <span style={{ padding: '4px 8px', borderRadius: 6, fontWeight: 700, background: '#70e9aaff', color: '#166534' }}>{ticket.estatus}</span>;
+                                                                                        }
+                                                                                        // Rojo por defecto (ej. 'Cerrado' u otros)
+                                                                                        return <span style={{ padding: '4px 8px', borderRadius: 6, fontWeight: 700, background: '#ef7d7dff', color: '#991b1b' }}>{ticket.estatus}</span>;
+                                                                                    })()
+                                                                                }
+                                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>

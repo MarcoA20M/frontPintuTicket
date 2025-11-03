@@ -254,25 +254,25 @@ const Tracking = () => {
 
                         <div className="label">Ingeniero encargado</div>
                         <select value={ingenieroEncargado} onChange={(e) => setIngenieroEncargado(e.target.value)}>
-                            <option value="">Sin encargado</option>
+                            <option style={{color: "black"}} value="">Sin encargado</option>
                             {ingenieros.map(ing => (
-                                <option key={ing.id_ingeniero ?? ing.id ?? ing.idUsuario} value={ing.nombre}>{ing.nombre}</option>
+                                <option style={{color: "black"}} key={ing.id_ingeniero ?? ing.id ?? ing.idUsuario} value={ing.nombre}>{ing.nombre}</option>
                             ))}
                         </select>
 
                         <div className="label">Prioridad</div>
                         <select value={prioridadSeleccionada} onChange={(e) => setPrioridadSeleccionada(e.target.value)}>
-                            <option value="">Sin prioridad</option>
+                            <option style={{color: "black"}} value="">Sin prioridad</option>
                             {prioridades.map(p => (
-                                <option key={p.id_prioridad ?? p.id ?? p.nombre} value={String(p.id_prioridad ?? p.id ?? p.nombre)}>{p.nombre ?? p.prioridad ?? p}</option>
+                                <option style={{color: "black"}}key={p.id_prioridad ?? p.id ?? p.nombre} value={String(p.id_prioridad ?? p.id ?? p.nombre)}>{p.nombre ?? p.prioridad ?? p}</option>
                             ))}
                         </select>
 
                         <div className="label">Tipo</div>
                         <select value={tipoSeleccionado} onChange={(e) => setTipoSeleccionado(e.target.value)}>
-                            <option value="">Selecciona un tipo</option>
+                            <option style={{color: "black"}} value="">Selecciona un tipo</option>
                             {tipos.map(t => (
-                                <option key={t.idTipoTicket ?? t.id} value={t.tipo}>{t.tipo}</option>
+                                <option style={{color: "black"}} key={t.idTipoTicket ?? t.id} value={t.tipo}>{t.tipo}</option>
                             ))}
                         </select>
 
@@ -280,7 +280,7 @@ const Tracking = () => {
                         <select value={estatusSeleccionado} onChange={(e) => setEstatusSeleccionado(e.target.value)}>
                             {estatusList && estatusList.length > 0 ? (
                                 estatusList.map(es => (
-                                    <option key={es.id_estatus ?? es.id} value={es.nombre ?? es.estatus ?? es.value}>{es.nombre ?? es.estatus ?? es.value}</option>
+                                    <option style={{color: "black"}} key={es.id_estatus ?? es.id} value={es.nombre ?? es.estatus ?? es.value}>{es.nombre ?? es.estatus ?? es.value}</option>
                                 ))
                             ) : (
                                 <>
