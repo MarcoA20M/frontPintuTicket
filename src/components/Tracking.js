@@ -179,7 +179,7 @@ const Tracking = () => {
         try {
             const updated = await updateTicket(payload);
             // notificar localmente al usuario que ejecutó la acción (ingeniero)
-            addNotification(updated.folio, `Tu ticket ${updated.folio} FUE ACTUALIZADO POR: ${updated.ingeniero}`);
+            // addNotification(updated.folio, `Tu ticket ${updated.folio} FUE ACTUALIZADO POR: ${updated.ingeniero}`);
 
             // emitir al servidor para que lo notifique a otros clientes (por ejemplo al solicitante) vía STOMP
             try {

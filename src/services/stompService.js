@@ -11,7 +11,8 @@ export const connect = ({ url = 'http://localhost:8080/', onConnect } = {}) => {
     return new Promise((resolve, reject) => {
         try {
             client = new Client({
-                webSocketFactory: () => new SockJS(url),
+                // Forzar transporte 'websocket' ayuda a evitar preflight/XHR '/info' con CORS durante pruebas
+                webSocketFactory: () => new SockJS(url, null, { transports: ['websocket'] }),
                 reconnectDelay: 5000,
                 debug: function (str) {
                     // console.log('STOMP:', str);
