@@ -152,10 +152,10 @@ const LoginPage = ({ onLoginSuccess }) => {
           <img src={logo} alt="Pintumex Logo" />
         </a>
         <ul>
-          <li><a href="">inicio</a></li>
-          <li><a href="">nosotros</a></li>
-          <li><a href="">servicios</a></li>
-          <li><a href="">contacto</a></li>
+          <li><a className="login"href="#">Inicio</a></li>
+          <li><a className="login"href="#">Nosotros</a></li>
+          <li><a className="login"href="#">Servicios</a></li>
+          <li><a className="login"href="#">Contacto</a></li>
           {/* Cambiado para usar toggleLogin */}
           <li><a onClick={toggleLogin} className="login" href="#">Iniciar sesión</a></li>
         </ul>
@@ -167,7 +167,7 @@ const LoginPage = ({ onLoginSuccess }) => {
           {/* Cambiado para usar toggleLogin */}
           <div onClick={toggleLogin} className="close-login-form">&times;</div>
           <form onSubmit={handleSubmit}>
-            <h2>Login</h2>      
+            <h2>Inicio de sesion</h2>      
             <div className="input-group">
               <input 
                 type="text" 
@@ -177,7 +177,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                 value={formData.username}
                 onChange={handleInputChange}
               /> 
-              <label>username</label>
+              <label>Usuario</label>
               <button type="button">
                 <UserIcon />
               </button>
@@ -191,7 +191,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                 value={formData.password}
                 onChange={handleInputChange}
               /> 
-              <label>password</label>
+              <label>Contraseña</label>
               <button type="button">
                 <LockIcon />
               </button>
@@ -209,7 +209,7 @@ const LoginPage = ({ onLoginSuccess }) => {
               <a href="#">forgot password</a>
             </div>
             <button type="submit" className="login-button">Iniciar sesión</button>
-            <p>Don't have an account? <a className="sing-up" href="#">Sign up</a></p>
+            <p>¿No tienes credenciales<a className="sing-up" href="#">Sign up</a></p>
           </form> 
         </main>
       )}

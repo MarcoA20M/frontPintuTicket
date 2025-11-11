@@ -69,7 +69,22 @@ header ul li a{
     border-radius: 4px;
     overflow: hidden;
     border: 1px solid transparent;
+    box-shadow: 0 0 20px #22222265;
+    border: 1px solid #ffffff36;
+    transition: 1s;
 }   
+
+/*    max-width: 400px;
+    width: 100%;
+    margin: 200px auto;
+    background: #00000013;
+    padding: 2rem;
+    backdrop-filter: blur(20px);
+    position: relative;
+    border-radius: 10px;
+    box-shadow: 0 0 20px #22222265;
+    border: 1px solid #ffffff36;
+    transition: 1s;*/
 
 header ul li a:login{
     border: 1px solid #fff;
@@ -102,7 +117,7 @@ header ul li a:hover{
 .login-form{
     max-width: 400px;
     width: 100%;
-    margin: 200px auto;
+    margin: 50px auto;
     background: #00000013;
     padding: 2rem;
     backdrop-filter: blur(20px);
@@ -115,25 +130,50 @@ header ul li a:hover{
 
 .login-form h1{
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 28px;
 }
 
 
 .login-form .input-group{
     height: 50px;
     margin-bottom: 10px;
+    margin-top: 12px; /* más espacio superior para que no se amontonen con el texto de arriba */
     border-radius: 6px;
     display: flex;
     position: relative;
-    border-bottom: 3px solid #fff;
+    border-bottom: 1px solid #fff;
 }
 
 .login-form .input-group input{
     width: 100%;
-    background: transparent;
+    background: transparent !important; /* Evita fondo blanco al autofill */
     border: none;
     outline: none;
     padding: 0 40px 0 10px;
+}
+
+/* Evitar que el autofill pinte el fondo en blanco (Chrome/Edge/Safari - WebKit) */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #ffffff !important; /* color del texto acorde a tu UI */
+    caret-color: #ffffff;
+    /* Truco para "pintar" el fondo con transparente en lugar de amarillo/blanco por autofill */
+    -webkit-box-shadow: 0 0 0px 1000px rgba(0,0,0,0) inset !important;
+    box-shadow: 0 0 0px 1000px rgba(0,0,0,0) inset !important;
+    background-color: transparent !important;
+    background-clip: padding-box;
+    transition: background-color 9999s ease-in-out 0s;
+}
+
+/* Firefox */
+input:-moz-autofill,
+input:-moz-autofill:hover,
+input:-moz-autofill:focus {
+    box-shadow: 0 0 0px 1000px rgba(0,0,0,0) inset !important;
+    -moz-box-shadow: 0 0 0px 1000px rgba(0,0,0,0) inset !important;
+    background-color: transparent !important;
+    -moz-text-fill-color: #ffffff !important;
 }
 
 .login-form .input-group input::placeholder{
@@ -142,7 +182,7 @@ header ul li a:hover{
 
 .login-form .input-group label{
     position: absolute;
-    top: 12%;
+    top: 6px; /* subir más la etiqueta para que no se encime con el texto del input */
     left: 10px;
     pointer-events: none;
 }
@@ -165,8 +205,8 @@ header ul li a:hover{
 
 .login-form .input-group input:focus + label,
 .login-form .input-group input:not(:placeholder-shown) + label{
-    top: -4px;
-    font-size: 13px;
+    top: -16px; /* elevar más cuando flota */
+    font-size: 12px; /* hacerla un poco más pequeña al flotar */
 }
 
 .login-form .remember{
@@ -226,6 +266,7 @@ header ul li a:hover{
     opacity: 0;
     cursor: pointer;
     user-select: none;
+    color: #fff;
 } 
 
 .login-form:hover .close-login-form{
