@@ -2,6 +2,10 @@
   "name": "pintumex-frontend",
   "version": "0.1.0",
   "private": true,
+  "homepage": ".",
+  "engines": {
+    "node": "20.x"
+  },
   "dependencies": {
     "@chakra-ui/react": "^3.26.0",
     "@chakra-ui/theme-tools": "^2.2.6",
