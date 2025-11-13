@@ -4,8 +4,10 @@
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    gap: 2rem;
+    gap: 3rem;
     padding: 1.5rem 2rem;
+    padding-left: 3.3rem;
+    padding-right: 0.1rem;
 }
 
 .header-link, .notifications-button {

@@ -2,14 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getTicketsByUsuarioId } from '../services/ticketService';
 import Sidebar from './Sidebar';
-
-const cardStyle = {
-    background: 'rgba(255,255,255,0.12)',
-    padding: 24,
-    borderRadius: 10,
-    color: '#000',
-    minWidth: 260
-};
+import './Styles/tracking.css';
 
 const TrackingUser = () => {
     const navigate = useNavigate();
@@ -80,32 +73,31 @@ const TrackingUser = () => {
     const totalCerrados = userTickets.filter(t => t.estatus && t.estatus.toLowerCase() === 'cerrado').length;
 
     return (
-        <div className="tracking-user-root" style={{ display: 'flex', minHeight: '100vh' }}>
-            <div style={{ flex: 1, padding: 28 }}>
-                <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                    </div>
+        <div className="tracking-user-root">
+            <div className="tracking-user-content">
+                <header className="tracking-user-header">
+                    <div className="tracking-user-header-left" />
                 </header>
 
-                <div className='' style={{ display: 'flex', gap: 20, alignItems: 'flex-start', marginBottom: 28 }}>
-                    <div style={{ ...cardStyle, color: '#000', background: '#267ac8ff' }}>
-                        <div style={{ fontSize: 14 }}>Tickets totales</div>
-                        <div style={{ fontSize: 48, fontWeight: 800 }}>{loading ? '...' : totalTickets}</div>
+                <div className="tracking-user-stats">
+                    <div className="tracking-user-card tracking-user-card-total">
+                        <div className="tracking-user-card-label">Tickets totales</div>
+                        <div className="tracking-user-card-number">{loading ? '...' : totalTickets}</div>
                     </div>
 
-                    <div style={{ ...cardStyle, color: '#000', background: '#eb8d9bff' }}>
-                        <div style={{ fontSize: 14 }}>Tickets cerrados</div>
-                        <div style={{ fontSize: 48, fontWeight: 800, color: '#e74c3c' }}>{loading ? '...' : totalCerrados}</div>
+                    <div className="tracking-user-card tracking-user-card-closed">
+                        <div className="tracking-user-card-label">Tickets cerrados</div>
+                        <div className="tracking-user-card-number tracking-user-card-number-closed">{loading ? '...' : totalCerrados}</div>
                     </div>
 
-                    <div style={{ marginLeft: 'auto' }}>
-                        <input placeholder="Folio" value={filterFolio} onChange={e => { setFilterFolio(e.target.value); setCurrentPage(1); }} style={{ padding: '10px 14px', borderRadius: 20, border: 'none', outline: 'none', minWidth: 220 }} />
+                    <div className="tracking-user-filter">
+                        <input placeholder="Folio" value={filterFolio} onChange={e => { setFilterFolio(e.target.value); setCurrentPage(1); }} />
                     </div>
                 </div>
 
-                <div style={{ background: 'rgba(0,0,0,0.12)', padding: 24, borderRadius: 10 }}>
+                <div className="tracking-user-panel">
 
-                    <hr style={{ border: 'none', height: 2, background: 'rgba(255,255,255,0.06)', margin: '12px 0' }} />
+                    <hr />
 
                     {loading ? (
                         <div>Cargando tickets...</div>
@@ -152,17 +144,21 @@ const TrackingUser = () => {
                                                     tabIndex={0}
                                                     onKeyDown={(e) => { if (e.key === 'Enter') { setSelectedFolio(ticket.folio ?? ticket.id); handleView(ticket.folio ?? ticket.id); } }}
                                                     >
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                                                        <div>
-                                                            <div style={{ fontSize: 12, opacity: 0.85 }}>Folio: <strong>{ticket.folio}</strong></div>
-                                                            <div style={{ marginTop: 6, fontWeight: 700 }}>{ticket.tipo_ticket ?? ticket.tipo ?? '—'}</div>
-                                                            <div style={{ marginTop: 6 }}>{ticket.descripcion}</div>
+                                                    <div className="ticket-card-top">
+                                                        <div className="ticket-card-left">
+                                                            <div className="ticket-card-info">Folio: <strong>{ticket.folio}</strong></div>
+                                                            <div className="ticket-card-title">{ticket.tipo_ticket ?? ticket.tipo ?? '—'}</div>
+                                                            <div className="ticket-card-desc">{ticket.descripcion}</div>
                                                         </div>
-                                                        <div style={{ textAlign: 'right' }}>
-                                                            <div style={{ fontSize: 13 }}>{ticket.usuario ?? ticket.nombre ?? ticket.userName}</div>
-                                                            <div style={{ fontSize: 12, opacity: 0.8 }}>{ticket.fechaCreacion ? new Date(ticket.fechaCreacion).toLocaleString() : ''}</div>
-                                                            <div style={{ marginTop: 8 }}>
-                                                                <span style={{ padding: '4px 8px', borderRadius: 6, fontWeight: 700, background: ticket.estatus === 'Abierto' ? '#70e9aaff' : '#ef7d7dff', color: ticket.estatus === 'Abierto' ? '#166534' : '#991b1b' }}>{ticket.estatus}</span>
+                                                        <div className="ticket-card-right">
+                                                            <div className="ticket-card-user">{ticket.usuario ?? ticket.nombre ?? ticket.userName}</div>
+                                                            <div className="ticket-card-date">{ticket.fechaCreacion ? new Date(ticket.fechaCreacion).toLocaleString() : ''}</div>
+                                                            <div className="ticket-card-badge-wrapper">
+                                                                {(() => {
+                                                                    const s = String(ticket.estatus ?? '').toLowerCase().trim();
+                                                                    const statusClass = s.includes('progres') ? 'status-progress' : (s === 'abierto' ? 'status-open' : 'status-other');
+                                                                    return <span className={`status-badge ${statusClass}`}>{ticket.estatus}</span>;
+                                                                })()}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -175,7 +171,7 @@ const TrackingUser = () => {
                                     </div>
 
                                     {/* Paginación estilo Bootstrap */}
-                                    <nav aria-label="Paginación tickets" style={{ marginTop: 12 }}>
+                                    <nav aria-label="Paginación tickets" className="tracking-user-pagination">
                                         <ul className="pagination justify-content-center">
                                             <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
                                                 <button className="page-link" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} aria-label="Anterior">&laquo;</button>

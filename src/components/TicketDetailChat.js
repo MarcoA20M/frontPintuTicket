@@ -1,16 +1,24 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getUsuarioById } from "../services/usuarioService";
 import { getTicketById } from "../services/ticketService";
 import { getHistorialByFolio } from "../services/historial";
 import { useNotifications } from '../contexts/NotificationContext';
+import './Styles/TicketDetailChatGlass.css';
+import { riteTicket } from '../services/ticketService';
+
 
 const TicketDetailChat = () => {
   const { folio } = useParams();
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [historial, setHistorial] = useState([]);
-  const { subscribeNotifications, notifications } = useNotifications();
+  const { subscribeNotifications, notifications, addNotification } = useNotifications();
+
+  // Estados para calificación (deben estar al tope y no condicionales)
+  const [rating, setRating] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [ratingLoading, setRatingLoading] = useState(false);
+  const [ratingSuccess, setRatingSuccess] = useState('');
 
   // carga inicial del ticket y del historial al montar o cuando cambie el folio
   useEffect(() => {
@@ -40,10 +48,11 @@ const TicketDetailChat = () => {
   }, [folio]);
 
 
-  
+
   const usuarioGuardado = localStorage.getItem('usuario');
   const usuarioObj = usuarioGuardado ? JSON.parse(usuarioGuardado) : null;
   const usuarioId = usuarioObj?.id ?? usuarioObj?.userId ?? usuarioObj?.idUsuario ?? usuarioObj?.id_usuario ?? null;
+
   useEffect(() => {
     if (!subscribeNotifications) return undefined;
 
@@ -57,12 +66,12 @@ const TicketDetailChat = () => {
         // opción B: agregar la notificación directamente al historial (si payload tiene detalle)
         // setHistorial(prev => [...prev, { detalle: notif.message, usuario: notif.usuario, fecha: new Date().toISOString() }]);
         // y opcionalmente re-fetch del ticket para actualizar estatus/ingeniero
-        getTicketById(folio).then(t => setTicket(t)).catch(() => {});
+        getTicketById(folio).then(t => setTicket(t)).catch(() => { });
       }
     });
     return () => {
       try { if (typeof unsub === 'function') unsub(); }
-      catch(e){}
+      catch (e) { }
     };
   }, [folio, subscribeNotifications]);
 
@@ -74,7 +83,7 @@ const TicketDetailChat = () => {
       if (matched) {
         console.debug('[TicketDetailChat] matched notification via notifications array', matched);
         getHistorialByFolio(folio).then(h => setHistorial(Array.isArray(h) ? h : (h ? [h] : []))).catch(e => console.warn(e));
-        getTicketById(folio).then(t => setTicket(t)).catch(() => {});
+        getTicketById(folio).then(t => setTicket(t)).catch(() => { });
       }
     } catch (e) { console.warn('Error checking notifications array', e); }
   }, [notifications, folio]);
@@ -92,8 +101,12 @@ const TicketDetailChat = () => {
     messages.push({ sender: 'system', text: `El problema ha sido resuelto. Solución: "${ticket.solucion}"` });
   }
 
+
+
   const formatMessageText = (text) => {
-    return text.split('**').map((part, index) => index % 2 === 1 ? <strong key={index}>{part}</strong> : part);
+    // defensivo: aceptar undefined/null y cualquier tipo
+    const s = text == null ? '' : String(text);
+    return s.split('**').map((part, index) => index % 2 === 1 ? <strong key={index}>{part}</strong> : part);
   };
 
   const formatHistorialText = (h) => {
@@ -164,14 +177,14 @@ const TicketDetailChat = () => {
             return (
               <div key={`hist-${i}`} className={`message-bubble history ${senderClass}`}>
                 {isStructuredObject ? (
-                          //componente que muestra el los historiales
-                          <div style={{ whiteSpace: 'pre-wrap', marginTop: 8  }}>
-                            {Object.entries(h).map(([k, v]) => (
-                              <div key={k} style={{ marginBottom: 6 }}>
-                                <strong>{k}</strong>: <span>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
-                              </div>
-                            ))}
-                          </div>
+                  //componente que muestra el los historiales
+                  <div style={{ whiteSpace: 'pre-wrap', marginTop: 8 }}>
+                    {Object.entries(h).map(([k, v]) => (
+                      <div key={k} style={{ marginBottom: 6 }}>
+                        <strong>{k}</strong>: <span>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <>
                     {/* Mostrar texto multilínea preservando saltos y formato de bold (** **) */}
@@ -187,7 +200,72 @@ const TicketDetailChat = () => {
         ) : (
           <div className="no-historial" style={{ marginTop: 12 }}>No hay historial para este folio.</div>
         )}
-      </div>
+      </div >
+      {/* Sección de calificación: sólo si está cerrado */}
+      {String(ticket.estatus || '').toLowerCase() === 'cerrado' && (
+        <div className="ticket-rating">
+          <div className="ticket-rating-header">
+            Califica la atención del ticket
+          </div>
+          {ticket.calificacion ? (
+            <div>Gracias por sus comentarios<strong></strong> {ticket.calificacionComentario ? <> - {ticket.calificacionComentario}</> : null}</div>
+          ) : (
+            <>
+                <div className="rating-row">
+                <label className="rating-label">Puntuación: </label>
+                <select className="rating-select" value={rating} onChange={e => setRating(Number(e.target.value))}>
+                  <option style={{color: "black"}} value={0}>Selecciona...</option>
+                  <option style={{color: "black"}} value={1}>Muy mal</option>
+                  <option style={{color: "black"}} value={2}>Mal</option>
+                  <option style={{color: "black"}} value={3}>Regular</option>
+                  <option style={{color: "black"}} value={4}>Bien</option>
+                  <option style={{color: "black"}} value={5}>Excelente</option>
+                </select>
+              </div>
+              <div className="rating-comment">
+                <label>Comentario (opcional)</label>
+                <textarea value={ratingComment} onChange={e => setRatingComment(e.target.value)} rows={3} className="rating-textarea" />
+              </div>
+              <div className="rating-actions">
+                <button
+                  className="btn btn-primary"
+                  disabled={ratingLoading || rating <= 0}
+                  onClick={async () => {
+                    try {
+                      setRatingLoading(true);
+                      // Llamar al servicio de calificación
+                      // El backend espera los campos `calificacion` y `comentario_usr`
+                      const payload = { folio: ticket.folio, calificacion: rating, comentario_usr: ratingComment };
+                      const updated = await riteTicket(payload);
+                      // Normalizar la respuesta para mantener compatibilidad con la UI
+                      if (updated) {
+                        const normalized = {
+                          ...updated,
+                          // algunos backends devuelven nombres distintos; mapeamos a los campos que usa la UI
+                          calificacion: updated.calificacion ?? updated.rating ?? updated.score,
+                          calificacionComentario: updated.comentario_usr ?? updated.comentarios ?? updated.comentario ?? updated.calificacionComentario,
+                        };
+                        setTicket(normalized);
+                      }
+                      setRatingSuccess('Gracias por tu calificación.');
+                      // registrar notificación local para que aparezca en la lista
+                      try { addNotification(String(ticket.folio), `ticket cerrado`, { skipBroadcast: false }); } catch (e) { }
+                    } catch (e) {
+                      console.error('Error enviando calificación:', e);
+                      setRatingSuccess('No se pudo enviar la calificación. Intenta de nuevo.');
+                    } finally {
+                      setRatingLoading(false);
+                    }
+                  }}
+                >Enviar calificación</button>
+                <button className="btn btn-secondary" onClick={() => { setRating(0); setRatingComment(''); setRatingSuccess(''); }} disabled={ratingLoading}>Limpiar</button>
+              </div>
+              {ratingLoading && <div style={{ marginTop: 8 }}>Enviando calificación...</div>}
+              {ratingSuccess && <div style={{ marginTop: 8 }}>{ratingSuccess}</div>}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };

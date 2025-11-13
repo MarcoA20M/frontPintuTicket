@@ -1,7 +1,7 @@
 /* src/components/Sidebar.js */
 /*eslint-disable*/
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { getUsuarioById } from '../services/usuarioService';
 import '../components/Styles/sidebar.css';
 import logo from '../assets/image.png';
@@ -72,7 +72,7 @@ const Sidebar = () => {
                         {/* tabla de seguimiento de tickets */}
                         <ul className="sidebar-nav">
                             <li className="sidebar-nav-item">
-                                <Link to="/tabla" className={`sidebar-nav-link ${location.pathname === "/tabla" ? "active" : ""}`}>
+                                <NavLink to="/tabla" className={({isActive}) => `sidebar-nav-link ${isActive ? 'active' : ''}`} end>
                                     <span className="sidebar-nav-link-icon">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-clock">
                                             <circle cx="12" cy="12" r="10"></circle>
@@ -80,35 +80,35 @@ const Sidebar = () => {
                                         </svg>
                                     </span>
                                     seguimiento
-                                </Link>
+                                </NavLink>
                             </li>
                             {/* registros */}
-                            <li className="sidebar-nav-item add-new">
-                                <Link to="/admin" className={`sidebar-nav-link ${location.pathname === "/admin" ? "active" : ""}`}>
+                            <li className="sidebar-nav-item">
+                                <NavLink to="/admin" className={({isActive}) => `sidebar-nav-link ${isActive ? 'active' : ''}`} end>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <path d="M12 20h9"></path>
                                         <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
                                     </svg>
                                     <span>Registros</span>
-                                </Link>
+                                </NavLink>
                             </li>
                             {/* equipo */}
                             <li className="sidebar-nav-item">
-                                <Link to="/seguimiento" className={`sidebar-nav-link ${location.pathname === "/seguimiento" ? "active" : ""}`}>
+                                <NavLink to="/seguimiento" className={({isActive}) => `sidebar-nav-link ${isActive ? 'active' : ''}`} end>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <path d="M3 11l2-2 4 4 8-8 4 4v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4z"></path>
                                     </svg>
                                     <span>Equipo</span>
-                                </Link>
+                                </NavLink>
                             </li>
                             <li className="sidebar-nav-item">
-                                <Link to="/ticketsIngeniero" className={`sidebar-nav-link ${location.pathname === "/seguimientoUsr" ? "active" : ""}`}>
+                                <NavLink to="/ticketsIngeniero" className={({isActive}) => `sidebar-nav-link ${isActive ? 'active' : ''}`} end>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <circle cx="12" cy="8" r="3"></circle>
                                         <path d="M5.5 20a6.5 6.5 0 0 1 13 0"></path>
                                     </svg>
                                     <span>Seguimiento de mis tickets</span>
-                                </Link>
+                                </NavLink>
                             </li>
                         </ul>
                     </nav>

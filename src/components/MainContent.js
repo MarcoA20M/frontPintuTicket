@@ -3,7 +3,6 @@ import { getAllTipoTickets } from "../services/tipoTicketService";
 // import { createTicket, hayTicketMaestroEnProceso } from "../services/ticketService";
 import { createTicketCreate, getTicketById } from '../services/ticketService';
 import { useNotifications } from '../contexts/NotificationContext';
-import { connect as stompConnect, subscribe as stompSubscribe, disconnect as stompDisconnect } from '../services/stompService';
 import '../components/Styles/mainContent.css';
 
 const MainContent = () => {
@@ -19,7 +18,7 @@ const MainContent = () => {
     const [selectedRequerimiento, setSelectedRequerimiento] = useState(false);
     const [subTipoSeleccionado, setSubTipoSeleccionado] = useState(null);
 
-    const { addNotification } = useNotifications();
+    const { addNotification, subscribeNotifications } = useNotifications();
 
     // Obtener usuario autenticado de localStorage
     let usuarioLocal = null;
@@ -39,6 +38,12 @@ const MainContent = () => {
     };
 
     useEffect(() => {
+        // Suscribirse al NotificationProvider para reflejar notificaciones (locales o del servidor)
+        // const unsubscribe = subscribeNotifications((notif) => {
+        //     if (!notif || !notif.message) return;
+        //     setMessages(prev => [...prev, { text: `🔔 ${notif.message}`, sender: 'system' }]);
+        // });
+
         const fetchTipos = async () => {
             try {
                 const data = await getAllTipoTickets();
@@ -50,83 +55,11 @@ const MainContent = () => {
             }
         };
         fetchTipos();
-        // Conectar STOMP y suscribirse a topic público y cola privada del usuario
-        const notifiedFoliosRef = { current: new Set() };
-        let subPrivate = null;
-        let subTopic = null;
 
-        (async () => {
-            try {
-                await stompConnect({ url: 'http://localhost:8080/' });
-                // suscribirse a cola privada: /user/queue/notifications
-                const usuarioName = usuarioLocal ? (usuarioLocal.userName ?? usuarioLocal.username ?? usuarioLocal.user ?? usuarioLocal.nombre ?? null) : null;
-                // if (usuarioName) {
-                //     subPrivate = await stompSubscribe('/user/queue/notifications', async (payload) => {
-                //         try {
-                //             const folio = payload?.folio;
-                //             if (!folio) return;
-                //             if (!notifiedFoliosRef.current.has(folio)) {
-                //                 addNotification(folio, payload?.message || `Tu ticket ${folio} fue actualizado.`);
-                //                 setMessages(prev => [...prev, { text: `🔔 ${payload?.message || `Tu ticket ${folio} fue actualizado.`}`, sender: 'system' }]);
-                //                 notifiedFoliosRef.current.add(folio);
-                //             }
-                //         } catch (e) { console.error('Error handling private notification', e); }
-                //     });
-                // }
-
-                // suscribirse al topic público /topic/tickets
-                subTopic = await stompSubscribe('/topic/tickets', async (payload) => {
-                    try {
-                        const folio = payload?.folio;
-                        if (!folio) return;
-
-                        const currentName = usuarioLocal ? (usuarioLocal.nombre || usuarioLocal.usuario || '') : '';
-                        const currentEmail = usuarioLocal ? (usuarioLocal.correo || usuarioLocal.email || '') : '';
-                        const currentId = usuarioLocal ? (usuarioLocal.id || usuarioLocal.id_usuario || usuarioLocal.idUsuario || '') : '';
-
-                        const targetName = payload?.usuario ?? payload?.usuario_nombre ?? '';
-                        const targetEmail = payload?.usuario_email ?? payload?.correo ?? '';
-                        const targetId = payload?.usuario_id ?? '';
-
-                        const matchesName = currentName && targetName && String(currentName).trim() === String(targetName).trim();
-                        const matchesEmail = currentEmail && targetEmail && String(currentEmail).trim() === String(targetEmail).trim();
-                        const matchesId = currentId && targetId && String(currentId).trim() === String(targetId).trim();
-
-                        if ((matchesName || matchesEmail || matchesId) && !notifiedFoliosRef.current.has(folio)) {
-                            addNotification(folio, payload?.message || `Tu ticket con folio ${folio} fue actualizado por el ingeniero ${payload.ingeniero}.`);
-                            notifiedFoliosRef.current.add(folio);
-                        } else {
-                            // fallback: check owner via API
-                            try {
-                                const ticket = await getTicketById(folio);
-                                if (ticket) {
-                                    const ownerName = ticket.usuario || ticket.nombre || ticket.usuario_nombre || '';
-                                    const ownerEmail = ticket.correo || ticket.email || ticket.usuario_correo || '';
-                                    const ownerId = ticket.id_usuario || ticket.idUsuario || ticket.usuario_id || ticket.id || '';
-                                    if ((ownerName && String(ownerName).trim() === String(currentName).trim()) || (ownerEmail && String(ownerEmail).trim() === String(currentEmail).trim()) || (ownerId && String(ownerId).trim() === String(currentId).trim())) {
-                                        addNotification(folio, payload?.message || `Tu ticket con el folio${folio} fue actualizado por ${payload.ingeniero}.`);
-                                        //setMessages(prev => [...prev, { text: `🔔 ${payload?.message || `Tu ticket ${folio} fue asignado al ingeniero ${payload.ingeniero}.`}`, sender: 'system' }]);
-                                        notifiedFoliosRef.current.add(folio);
-                                    }
-                                }
-                            } catch (e) {
-                                console.warn('No fue posible obtener ticket por folio para validar owner:', e);
-                            }
-                        }
-                    } catch (e) { console.error('Error handling topic ticket payload', e); }
-                });
-            } catch (e) {
-                console.error('MainContent: STOMP connect/subscribe error', e);
-            }
-        })();
-
-        return () => {
-            try {
-                if (subPrivate) subPrivate.unsubscribe();
-                if (subTopic) subTopic.unsubscribe();
-                stompDisconnect();
-            } catch (e) {}
-        };
+        // return () => {
+        //     // limpiar suscripción al provider
+        //     try { if (typeof unsubscribe === 'function') unsubscribe(); } catch (e) {}
+        // };
     }, []);
 
     const handleTipoClick = (tipo) => {

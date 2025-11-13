@@ -105,9 +105,6 @@ export const getTicketById = async (folio) => {
     }
 };
 
-// Actualizar estatus de un ticket
-// --- NUEVO ---
-// Actualizar campos de un ticket (prioridad, ingeniero u otros) por id o folio
 export const updateTicket = async (ticketData) => {
     // ticketData debe contener al menos el identificador (id o folio) y los campos a actualizar
     try {

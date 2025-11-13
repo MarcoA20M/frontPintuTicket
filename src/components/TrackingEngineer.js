@@ -36,6 +36,7 @@ const TrackingEngineer = () => {
     };
 
     const [ingenieroEncargado, setIngenieroEncargado] = useState('');
+    const [reassign, setReassign] = useState(false);
     const [prioridadSeleccionada, setPrioridadSeleccionada] = useState('');
     const [tipoSeleccionado, setTipoSeleccionado] = useState('');
     const [estatusSeleccionado, setEstatusSeleccionado] = useState('Abierto');
@@ -163,9 +164,25 @@ const TrackingEngineer = () => {
         if (!ticketActual) return;
         // Construir payload compatible con TicketDTOUpdate esperado por el backend
         const prioridadNombre = (prioridades.find(p => String(p.id_prioridad) === String(prioridadSeleccionada)) || {}).nombre || (typeof prioridadSeleccionada === 'string' ? prioridadSeleccionada : undefined);
+
+        // Resolver nombre e id del ingeniero asignado (si se eligió reasignar)
+        let ingenieroNombreToSend = undefined;
+        let ingenieroIdToSend = undefined;
+        if (reassign && ingenieroEncargado) {
+            ingenieroIdToSend = ingenieroEncargado;
+            const found = (ingenieros || []).find(i => String(i.id_ingeniero ?? i.id ?? i.idUsuario ?? i.userId ?? i.userName ?? i.nombre) === String(ingenieroEncargado));
+            if (found) ingenieroNombreToSend = found.nombre ?? found.userName ?? found.username ?? String(found.nombre ?? found.userName ?? ingenieroEncargado);
+            else ingenieroNombreToSend = ingenieroEncargado; // fallback: send whatever we have
+        }
+
         const payload = {
             folio: ticketActual.folio,
-            ingeniero: ingenieroEncargado || undefined,
+            // enviar ambos: nombre e id para que el backend pueda notificar al usuario correcto
+            ingeniero: ingenieroNombreToSend || undefined,
+            ingenieroId: ingenieroIdToSend || undefined,
+            // variantes por si el backend espera otras claves
+            idIngeniero: ingenieroIdToSend || undefined,
+            id_ingeniero: ingenieroIdToSend || undefined,
             prioridad: prioridadNombre,
             estatus: estatusSeleccionado,
             comentarios: comentario || undefined,
@@ -173,7 +190,13 @@ const TrackingEngineer = () => {
             usuario: (typeof ticketActual.usuario === 'string')
                 ? ticketActual.usuario
                 : (ticketActual.usuario?.userName ?? ticketActual.usuario?.username ?? ticketActual.usuario?.nombre ?? ticketActual.usuario ?? undefined),
-            usuarioId: ticketActual.usuario?.id ?? ticketActual.usuarioId ?? ticketActual.id_usuario ?? undefined,
+            usuario_nombre: (typeof ticketActual.usuario === 'string') ? ticketActual.usuario : (ticketActual.usuario?.nombre ?? undefined),
+            usuarioId: ticketActual.usuario?.id ?? ticketActual.usuarioId ?? ticketActual.id_usuario ?? ticketActual.idUsuario ?? undefined,
+            idUsuario: ticketActual.usuario?.id ?? ticketActual.idUsuario ?? ticketActual.id_usuario ?? undefined,
+            id_usuario: ticketActual.usuario?.id ?? ticketActual.id_usuario ?? ticketActual.idUsuario ?? undefined,
+            usuario_id: ticketActual.usuario?.id ?? ticketActual.id_usuario ?? ticketActual.idUsuario ?? undefined,
+            correo: ticketActual.correo ?? ticketActual.usuario?.correo ?? ticketActual.email ?? undefined,
+            usuario_correo: ticketActual.usuario_correo ?? ticketActual.correo ?? ticketActual.usuario?.correo ?? undefined,
         };
 
         try {
@@ -182,7 +205,11 @@ const TrackingEngineer = () => {
             const updated = await updateTicket(payload);
             // log para depuración: confirmar la respuesta del backend
             
-            addNotification(updated.folio, `Tu ticket con folio: ${updated.folio} fue actualizado.`);
+            const ingenieroNombreFinal = updated?.ingeniero || ingenieroNombreToSend || '';
+            // addNotification(
+            //     updated.folio,
+            //     `Tu ticket con folio ${updated.folio} fue actualizado${ingenieroNombreFinal ? ` por el ingeniero ${ingenieroNombreFinal}` : ''}.`
+            // );
 
                 // No usamos STOMP/sockets aquí por ahora
 
@@ -207,7 +234,25 @@ const TrackingEngineer = () => {
             return;
         }
 
-        setIngenieroEncargado(ticketActual.ingeniero || '');
+        // Intentar mapear el ingeniero actual del ticket a un identificador conocido
+        try {
+            let initialIngenieroId = '';
+            if (ticketActual.ingenieroId) initialIngenieroId = String(ticketActual.ingenieroId);
+            else if (ticketActual.id_ingeniero) initialIngenieroId = String(ticketActual.id_ingeniero);
+            else if (ticketActual.ingeniero) {
+                // buscar por nombre en la lista de ingenieros
+                const match = (ingenieros || []).find(i => {
+                    const candidates = [i.nombre, i.userName, i.username, i.nombreCompleto].filter(Boolean).map(x => String(x).toLowerCase());
+                    return candidates.includes(String(ticketActual.ingeniero).toLowerCase());
+                });
+                if (match) initialIngenieroId = String(match.id_ingeniero ?? match.id ?? match.idUsuario ?? match.userId ?? match.userName ?? match.nombre ?? '');
+            }
+            // fallback: si no encontramos id, intentar usar cualquier campo existente
+            if (!initialIngenieroId && ticketActual.ingeniero) initialIngenieroId = String(ticketActual.ingeniero);
+            setIngenieroEncargado(initialIngenieroId);
+        } catch (e) {
+            setIngenieroEncargado(ticketActual.ingeniero || '');
+        }
 
         if (ticketActual.id_prioridad) {
             setPrioridadSeleccionada(String(ticketActual.id_prioridad));
@@ -235,19 +280,12 @@ const TrackingEngineer = () => {
                         <div className="label">Solicitante</div>
                         <div className="requester" style={{ background: '#fff', color: '#000', padding: '10px 12px', borderRadius: 8 }}>{ticketActual ? (formatUsuario(ticketActual.usuario) || '—') : '—'}</div>
 
-                        {/* <div className="label">Ingeniero encargado</div>
-                        <select value={ingenieroEncargado} onChange={(e) => setIngenieroEncargado(e.target.value)}>
-                            <option value="">Sin encargado</option>
-                            {ingenieros.map(ing => (
-                                <option key={ing.id_ingeniero ?? ing.id ?? ing.idUsuario} value={ing.nombre}>{ing.nombre}</option>
-                            ))}
-                        </select> */}
-
                         <div className="label">Prioridad</div>
                         <select value={prioridadSeleccionada} onChange={(e) => setPrioridadSeleccionada(e.target.value)}>
-                            <option value="">Sin prioridad</option>
-                            {prioridades.map(p => (
-                                <option key={p.id_prioridad ?? p.id ?? p.nombre} value={String(p.id_prioridad ?? p.id ?? p.nombre)}>{p.nombre ?? p.prioridad ?? p}</option>
+                            <option style={{color: "black"}} value="">Sin prioridad</option>
+                            
+                            {prioridades.map(p => ( 
+                                <option style={{color: "black"}} key={p.id_prioridad ?? p.id ?? p.nombre} value={String(p.id_prioridad ?? p.id ?? p.nombre)}>{p.nombre ?? p.prioridad ?? p}</option>
                             ))}
                         </select>
 
@@ -255,7 +293,7 @@ const TrackingEngineer = () => {
                         <select value={tipoSeleccionado} onChange={(e) => setTipoSeleccionado(e.target.value)}>
                             <option value="">Selecciona un tipo</option>
                             {tipos.map(t => (
-                                <option key={t.idTipoTicket ?? t.id} value={t.tipo}>{t.tipo}</option>
+                                <option style={{color: "black"}} key={t.idTipoTicket ?? t.id} value={t.tipo}>{t.tipo}</option>
                             ))}
                         </select>
 
@@ -263,7 +301,7 @@ const TrackingEngineer = () => {
                         <select value={estatusSeleccionado} onChange={(e) => setEstatusSeleccionado(e.target.value)}>
                             {estatusList && estatusList.length > 0 ? (
                                 estatusList.map(es => (
-                                    <option key={es.id_estatus ?? es.id} value={es.nombre ?? es.estatus ?? es.value}>{es.nombre ?? es.estatus ?? es.value}</option>
+                                    <option style={{color: "black"}} key={es.id_estatus ?? es.id} value={es.nombre ?? es.estatus ?? es.value}>{es.nombre ?? es.estatus ?? es.value}</option>
                                 ))
                             ) : (
                                 <>
@@ -283,6 +321,34 @@ const TrackingEngineer = () => {
                                 onChange={(e) => setComentario(e.target.value)}
                             />
                         </div>
+
+                        <div className="label">
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={reassign}
+                                    onChange={(e) => {
+                                        const checked = Boolean(e.target.checked);
+                                        setReassign(checked);
+                                        if (!checked) setIngenieroEncargado('');
+                                    }}
+                                />
+                                <span>¿Reasignar a otro ingeniero?</span>
+                            </label>
+                        </div>
+                                                
+                        {reassign && (
+                            <select value={ingenieroEncargado} onChange={(e) => setIngenieroEncargado(e.target.value)}>
+                                <option style={{ color: "black" }} value="">Sin encargado</option>
+                                {ingenieros.map(ing => {
+                                    const ingId = String(ing.id_ingeniero ?? ing.id ?? ing.idUsuario ?? ing.userId ?? ing.userName ?? ing.nombre ?? '');
+                                    const label = ing.nombre ?? ing.userName ?? ing.username ?? ing.nombreCompleto ?? ingId;
+                                    return (
+                                        <option style={{ color: "black" }} key={ingId} value={ingId}>{label}</option>
+                                    );
+                                })}
+                            </select>
+                        )}
 
                         <div className="left-actions">
                             <button onClick={handleGuardar} className="btn btn-success">Guardar</button>
@@ -353,6 +419,7 @@ const TrackingEngineer = () => {
                                                         <div>
                                                             <div style={{ fontSize: 12, opacity: 0.85 }}>Folio: <strong>{t.folio ?? t.id}</strong></div>
                                                             <div style={{ marginTop: 6, fontWeight: 700 }}>{t.tipo_ticket ?? t.tipo ?? '—'}</div>
+                                                            <div style={{ marginTop: 6 }}>{t.descripcion ?? t.description ?? '—'}</div>
                                                         </div>
                                                         <div style={{ textAlign: 'right' }}>
                                                             <div style={{ fontSize: 13 }}>{t.usuario ?? t.nombre ?? 'Solicitante'}</div>

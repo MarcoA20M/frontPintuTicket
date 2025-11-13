@@ -9,24 +9,52 @@ export const NotificationProvider = ({ children }) => {
     const [readNotifications, setReadNotifications] = useState([]); // Notificaciones leídas
     const tabIdRef = useRef(Math.random().toString(36).slice(2));
     const bcRef = useRef(null);
-    const recentNotifRef = useRef(new Map()); // ticketId -> { origin: 'local'|'server', ts }
+    const recentNotifRef = useRef(new Map()); // ticketId -> { origin: 'local'|'server'|'broadcast', ts }
+    const IMMEDIATE_DEDUPE_MS = 5000; // evita duplicados inmediatos (cualquier origen)
+    const SUPPRESS_SERVER_AFTER_LOCAL_MS = 60000; // si llegó local primero, suprime servidor hasta 60s para el mismo ticket
+
+    // Helper: ¿debemos omitir esta notificación por ser muy reciente?
+    const shouldSkip = (ticketKey) => {
+        try {
+            const recent = recentNotifRef.current.get(String(ticketKey));
+            if (!recent) return false;
+            return (Date.now() - recent.ts) < IMMEDIATE_DEDUPE_MS;
+        } catch {
+            return false;
+        }
+    };
+
+    const shouldSkipServer = (ticketKey) => {
+        try {
+            const recent = recentNotifRef.current.get(String(ticketKey));
+            if (!recent) return false;
+            const delta = Date.now() - recent.ts;
+            if (delta < IMMEDIATE_DEDUPE_MS) return true; // duplicado inmediato
+            // si la última notificación fue local, suprimir servidor por más tiempo
+            if (recent.origin === 'local' && delta < SUPPRESS_SERVER_AFTER_LOCAL_MS) return true;
+            return false;
+        } catch {
+            return false;
+        }
+    };
 
     // Función para añadir una nueva notificación
     // Ahora acepta opciones: { skipBroadcast } para evitar que mensajes recibidos por BroadcastChannel/storage se re-propaguen
     const addNotification = (ticketId, message, options = {}) => {
-        const { skipBroadcast = false } = options;
+        const { skipBroadcast = false, origin = 'local' } = options;
         console.debug('[NotificationProvider] addNotification called', { ticketId, message, skipBroadcast });
         const newNotification = {
             id: Date.now(),
             ticketId: ticketId,
             message: message,
             date: new Date().toLocaleDateString('es-ES'),
+            origin,
         };
         setNotifications(prevNotifications => [newNotification, ...prevNotifications]);
         // avisar a listeners locales (componentes suscritos)
         try { notifyListeners(newNotification); } catch (e) { /* ignore */ }
         // marcar como notificación local reciente para evitar ser sobrescrita por STOMP inmediato
-        try { recentNotifRef.current.set(String(ticketId), { origin: 'local', ts: Date.now() }); } catch (e) {}
+        try { recentNotifRef.current.set(String(ticketId), { origin, ts: Date.now() }); } catch (e) {}
         // Propagar a otras pestañas (BroadcastChannel o storage fallback) a menos que se solicite lo contrario
         if (!skipBroadcast) {
             try {
@@ -72,7 +100,7 @@ export const NotificationProvider = ({ children }) => {
                         // evitar procesar mensajes originados en esta misma pestaña
                         if (data && data.origin === tabIdRef.current) return;
                         // recibido desde otra pestaña: usar addNotification pero sin volver a propagar
-                        addNotification(data.ticketId ?? data.ticketId, data.message ?? data.message, { skipBroadcast: true });
+                        addNotification(data.ticketId ?? data.ticketId, data.message ?? data.message, { skipBroadcast: true, origin: 'broadcast' });
                     } catch (e) { console.debug('BroadcastChannel onmessage error', e); }
                 };
             } else if (typeof window !== 'undefined') {
@@ -83,7 +111,7 @@ export const NotificationProvider = ({ children }) => {
                         const data = JSON.parse(e.newValue || '{}');
                         if (!data || data.origin === tabIdRef.current) return;
                         // recibido desde otra pestaña: usar addNotification pero sin volver a propagar
-                        addNotification(data.ticketId ?? data.ticketId, data.message ?? data.message, { skipBroadcast: true });
+                        addNotification(data.ticketId ?? data.ticketId, data.message ?? data.message, { skipBroadcast: true, origin: 'broadcast' });
                     } catch (err) { /* ignore */ }
                 };
                 window.addEventListener('storage', onStorage);
@@ -109,6 +137,8 @@ export const NotificationProvider = ({ children }) => {
             const usuarioId = usuarioObj?.id ?? usuarioObj?.userId ?? usuarioObj?.idUsuario ?? usuarioObj?.id_usuario ?? null;
 
             try {
+                // Backend expone SockJS en "/ws" (según tu WebSocketConfig actual)
+                // Conectar al path correcto para que el handshake funcione.
                 await stompConnect({ url: 'http://localhost:8080/ws' });
 
                 // Suscribirse a la cola privada del usuario y al topic público
@@ -120,8 +150,14 @@ export const NotificationProvider = ({ children }) => {
                         // payload enviado por convertAndSendToUser
                         console.debug('[NotificationProvider] /user/queue/notifications payload', payload);
                         const folio = payload?.folio ?? payload?.ticketId ?? 'N/A';
+                        const ticketKey = String(folio || 'N/A');
                         const message = payload?.message || `Ticket ${folio} ha sido actualizado.`;
-                        addNotification(folio || 'N/A', message);
+                        // Dedupe: si ya hubo notificación local o cualquier origen reciente, omitir del servidor
+                        if (shouldSkipServer(ticketKey)) {
+                            console.debug('[NotificationProvider] skipped private notif due to recent', { ticketKey });
+                            return;
+                        }
+                        addNotification(ticketKey, message, { origin: 'server' });
                     });
                 } else {
                     console.warn('NotificationProvider: no usuarioName in localStorage; private STOMP subscription not created');
@@ -149,44 +185,34 @@ export const NotificationProvider = ({ children }) => {
                         // 1) Si hay ID en payload y en local -> comparar por ID (más fiable)
                         if (localId && usuarioIdEnPayload && String(localId) === String(usuarioIdEnPayload)) {
                             const ticketKey = String(folio || 'N/A');
-                            // si hay una notificación local muy reciente para este folio, preferirla
-                            const recent = recentNotifRef.current.get(ticketKey);
-                            if (recent && recent.origin === 'local' && Date.now() - recent.ts < 5000) {
-                                console.debug('[NotificationProvider] skipping server notif because local recent exists', { ticketKey, recent });
+                            if (shouldSkipServer(ticketKey)) {
+                                console.debug('[NotificationProvider] skipping public notif due to recent', { ticketKey });
                                 return;
                             }
-                            const notif = { ticketId: ticketKey, message };
-                            addNotification(ticketKey, message);
-                            notifyListeners(notif);
+                            addNotification(ticketKey, message, { origin: 'server' });
                             return;
                         }
 
                         // 2) Si no hay ID, comparar por nombre (case-insensitive)
                         if (!usuarioIdEnPayload && usuarioEnPayload && localName && String(localName).toLowerCase() === String(usuarioEnPayload).toLowerCase()) {
                             const ticketKey = String(folio || 'N/A');
-                            const recent = recentNotifRef.current.get(ticketKey);
-                            if (recent && recent.origin === 'local' && Date.now() - recent.ts < 5000) {
-                                console.debug('[NotificationProvider] skipping server notif because local recent exists', { ticketKey, recent });
+                            if (shouldSkipServer(ticketKey)) {
+                                console.debug('[NotificationProvider] skipping public notif due to recent', { ticketKey });
                                 return;
                             }
-                            const notif = { ticketId: ticketKey, message };
-                            addNotification(ticketKey, message);
-                            notifyListeners(notif);
+                            addNotification(ticketKey, message, { origin: 'server' });
                             return;
                         }
 
                         // 3) Fallback global: si el payload trae folio o message y no pudimos mapear, aceptarlo como notificación global
                         if (payload?.folio || payload?.ticketId || payload?.message) {
                             const ticketKey = String(folio || 'N/A');
-                            const recent = recentNotifRef.current.get(ticketKey);
-                            if (recent && recent.origin === 'local' && Date.now() - recent.ts < 5000) {
-                                console.debug('[NotificationProvider] skipping server fallback notif because local recent exists', { ticketKey, recent });
+                            if (shouldSkipServer(ticketKey)) {
+                                console.debug('[NotificationProvider] skipping public fallback notif due to recent', { ticketKey });
                                 return;
                             }
                             const msg = payload?.message || `Ticket ${folio}: actualización disponible.`;
-                            const notif = { ticketId: ticketKey, message: msg };
-                            addNotification(ticketKey, msg);
-                            notifyListeners(notif);
+                            addNotification(ticketKey, msg, { origin: 'server' });
                             return;
                         }
                         // Si no cumple ninguno, no notificar (evita ruido)

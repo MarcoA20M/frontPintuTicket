@@ -1,0 +1,140 @@
+:root {
+    --glass-bg: rgba(255, 255, 255, 0.06);
+    --glass-border: rgba(255, 255, 255, 0.12);
+    --glass-fg: rgba(255, 255, 255, 0.9);
+    --negro : rgba(0, 0, 0, 0.8);
+}
+
+.ticket-detail-chat-container {
+    padding: 16px;
+}
+
+.ticket-chat-title {
+    margin-bottom: 12px;
+}
+
+.chat-history {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.message-bubble {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+/* .message-bubble.system { background: rgba(50,115,255,0.06); }
+.message-bubble.user { background: rgba(255,246,195,0.04); } */
+
+.message-text-line {
+    white-space: pre-wrap;
+}
+
+.timestamp {
+    display: block;
+    font-size: 12px;
+    opacity: 0.75;
+    margin-top: 6px;
+}
+
+.no-historial {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+
+.select-label {
+    margin-top: 25px;
+    padding: 10px;
+    border-radius: 12px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18);
+    backdrop-filter: blur(8px) saturate(120%);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+    color: var(--glass-fg);
+}
+
+.ticket-rating {
+    /* Glass effect applied only to rating card */
+    margin-top: 18px;
+    padding: 12px;
+    border-radius: 12px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18);
+    backdrop-filter: blur(8px) saturate(120%);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+    color: var(--glass-fg);
+}
+
+.rating-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.rating-label {
+    min-width: 90px;
+}
+
+.rating-textarea {
+    width: 100%;
+    margin-top: 6px;
+    box-sizing: border-box;
+}
+
+.rating-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.rating-loading,
+.rating-success {
+    margin-top: 8px;
+    color: var(--glass-fg);
+}
+
+/* Make inputs slightly translucent only inside the rating card */
+.ticket-rating select,
+.ticket-rating textarea,
+.ticket-rating input {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--glass-fg);
+    padding: 6px 8px;
+    border-radius: 6px;
+}
+
+/* Aplicar efecto "glass" también a las opciones del select desplegable */
+.ticket-rating select option {
+    background: var(--glass-bg);
+    color: var(--glass-fg);
+    /* algunos navegadores soportan backdrop-filter en opciones; es experimental
+     pero intentamos mantener coherencia visual si el navegador lo permite */
+    backdrop-filter: blur(6px) saturate(120%);
+    -webkit-backdrop-filter: blur(6px) saturate(120%);
+}
+
+/* Quitar apariencia nativa para que el select se vea consistente */
+.ticket-rating select {
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--glass-fg) 50%),
+        linear-gradient(135deg, var(--glass-fg) 50%, transparent 50%);
+    background-position: calc(100% - 18px) calc(1em + 2px), calc(100% - 13px) calc(1em + 2px);
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+    padding-right: 28px;
+    /* espacio para el caret personalizado */
+}
+
+@media (max-width: 640px) {
+    .ticket-detail-chat-container {
+        padding: 10px;
+    }
+}
