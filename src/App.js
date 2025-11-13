@@ -56,7 +56,7 @@ function App() {
         return { isLoggedIn: true, role: decodedRole };
       }
     }
-    setIsLoggedIn(false);
+    setIsLoggedIn(false); //para descartivar el login
     setRole(null);
     return { isLoggedIn: false, role: null };
   };

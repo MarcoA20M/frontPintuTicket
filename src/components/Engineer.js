@@ -75,7 +75,7 @@ const Engineer = () => {
     }
 
     return (
-        <div className="perfil-container" style={{ display: 'flex', width: '110%', justifyContent: 'center', alignItems: 'flex-start', gap: '10px' }}>
+        <div className="perfil-container" style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'flex-start', gap: '10px' }}>
             {/* Sidebar could be enabled here */}
             {/* <Sidebar /> */}
 
@@ -131,7 +131,7 @@ const Engineer = () => {
                         boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
                         borderRadius: '18px',
                         padding: '28px 32px',
-                        width: '100%',
+                        width: '110%',
                         display: 'flex',
                         flexDirection: 'row',
                         justifyContent: 'space-between',
@@ -141,6 +141,7 @@ const Engineer = () => {
                         border: '1.5px solid rgba(255,255,255,0.35)',
                         WebkitBackdropFilter: 'blur(8px)',
                         transition: 'box-shadow 0.3s',
+                        marginTop: '30px',
                     }}>
                         <div style={{ textAlign: 'left' }}>
                             <h1 style={{ color: '#fff', marginBottom: '8px' }}>¡Bienvenido Ingeniero! {usuario.nombre} </h1>
@@ -155,7 +156,7 @@ const Engineer = () => {
                     </div>
 
                     {/* Sección de tickets: ocupando todo el ancho */}
-                    <div style={{ display: 'flex', gap: '32px', marginTop: '40px', width: '100%', justifyContent: 'space-between', alignItems: 'stretch' }}>
+                    <div style={{ display: 'flex', gap: '32px', marginTop: '40px', width: '110%', justifyContent: 'space-between', alignItems: 'stretch' }}>
                         {/* Tickets urgentes */}
                         <div style={{
                             flex: 1,
