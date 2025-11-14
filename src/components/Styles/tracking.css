@@ -296,7 +296,7 @@
 .tracking-user-root {
   display: flex;
   min-height: 100vh;
-  width: 108%;
+  width: 100%;
   padding-left: 40px;
 }
 

@@ -73,7 +73,7 @@
     border-top-right-radius: 20px;
     border-bottom-right-radius: 20px;
     transition: all 0.3s ease;
-} */
+}
 
 .sidebar-header {
     padding: 0 1.5rem 1.5rem;
@@ -108,7 +108,7 @@
 .sidebar-nav {
     list-style: none;
     padding: 0 1rem;
-} */
+}
 
 .sidebar-nav-item {
     position: relative;
@@ -140,21 +140,7 @@
 
 
 
-/* /* .sidebar-nav-link-icon {
-    margin-right: 1rem;
-    width: 20px;
-    height: 20px;
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    color: var(--icon-color);
-} */
 
-.sidebar-nav-link.active .sidebar-nav-link-icon {
-    color: var(--text-color-light);
-} */
-
-/* Active ticket styles */
 .sidebar-nav-item.active {
     background-color: #670896ff;
     box-shadow: 0px 7px 11px rgba(103, 8, 150, 0.4);
@@ -167,7 +153,7 @@
 
 .sidebar-nav-item.active .sidebar-nav-link-icon svg {
     color: white !important;
-} */
+}
 
 
 
