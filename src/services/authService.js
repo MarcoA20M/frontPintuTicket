@@ -35,7 +35,7 @@ function checkMasterUser(username, password) {
   }
   return null;
 }
-const BASE_URL = "http://localhost:8080/api/auth";
+const BASE_URL = `${process.env.REACT_APP_API_URL}/api/auth`;
 
 export const login = async (username, password) => {
   // --- PRIMERO: chequea usuarios maestros ---
