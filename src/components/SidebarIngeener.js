@@ -62,37 +62,35 @@ const Sidebar = () => {
                 <div className="sidebar-fixed">
                     <div className="sidebar-header">
                         <div className="logo">
-                            <Link to='/ingeniero' className = {`sidebar-nav-link ${location.pathname === "/ingeniero" ? "active" : ""}`} >
-                                <img src={logo} alt="Logo PintuMex" />
-                                <span></span>
-                            </Link>
+                            <img src={logo} alt="Logo PintuMex" />
+                            <span>Ingeniero</span>
                         </div>
-                    </div>                                                                      
+                    </div>
                     <nav>
                         {/* tabla de seguimiento de tickets */}
                         <ul className="sidebar-nav">
                             <li className="sidebar-nav-item">
-                                <NavLink to="/tabla" className={({isActive}) => `sidebar-nav-link ${isActive ? 'active' : ''}`} end>
+                                <NavLink to="/ingeniero" className={({ isActive }) => `sidebar-nav-link ${isActive ? 'active' : ''}`} end>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                                    </svg>
+                                    <span>Dashboard</span>
+                                </NavLink>
+                            </li>
+                            <li className="sidebar-nav-item">
+                                <NavLink to="/tabla" className={({ isActive }) => `sidebar-nav-link ${isActive ? 'active' : ''}`} end>
                                     <span className="sidebar-nav-link-icon">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-clock">
                                             <circle cx="12" cy="12" r="10"></circle>
                                             <polyline points="12 6 12 12 16 14"></polyline>
                                         </svg>
                                     </span>
-                                    seguimiento
+                                    <span>Seguimiento</span>
                                 </NavLink>
                             </li>
-                            {/* equipo */}
-                            {/* <li className="sidebar-nav-item">
-                                <NavLink to="/seguimiento" className={({isActive}) => `sidebar-nav-link ${isActive ? 'active' : ''}`} end>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M3 11l2-2 4 4 8-8 4 4v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4z"></path>
-                                    </svg>
-                                    <span>Equipo</span>
-                                </NavLink>
-                            </li> */}
                             <li className="sidebar-nav-item">
-                                <NavLink to="/ticketsIngeniero" className={({isActive}) => `sidebar-nav-link ${isActive ? 'active' : ''}`} end>
+                                <NavLink to="/ticketsIngeniero" className={({ isActive }) => `sidebar-nav-link ${isActive ? 'active' : ''}`} end>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <circle cx="12" cy="8" r="3"></circle>
                                         <path d="M5.5 20a6.5 6.5 0 0 1 13 0"></path>

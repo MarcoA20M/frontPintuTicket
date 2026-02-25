@@ -35,7 +35,8 @@ function checkMasterUser(username, password) {
   }
   return null;
 }
-const BASE_URL = `${process.env.REACT_APP_API_URL}/api/auth`;
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+const BASE_URL = `${API_URL}/api/auth`;
 
 export const login = async (username, password) => {
   // --- PRIMERO: chequea usuarios maestros ---
@@ -51,6 +52,15 @@ export const login = async (username, password) => {
       },
       body: JSON.stringify({ username, password }),
     });
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await response.text().catch(() => '');
+      throw new Error(
+        `Login: respuesta no JSON (status=${response.status}). ` +
+          `Revisa REACT_APP_API_URL/endpoint. Body: ${text.slice(0, 200)}`
+      );
+    }
 
     const data = await response.json();
 

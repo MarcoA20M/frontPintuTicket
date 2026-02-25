@@ -6,13 +6,12 @@ import { useNotifications } from '../contexts/NotificationContext';
 import './Styles/TicketDetailChatGlass.css';
 import { riteTicket } from '../services/ticketService';
 
-
 const TicketDetailChat = () => {
   const { folio } = useParams();
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [historial, setHistorial] = useState([]);
-  const { subscribeNotifications, notifications, addNotification } = useNotifications();
+  const { subscribeNotifications, notifications, subscribeTicketTopic, addNotification } = useNotifications();
 
   // Estados para calificación (deben estar al tope y no condicionales)
   const [rating, setRating] = useState(0);
@@ -74,6 +73,23 @@ const TicketDetailChat = () => {
       catch (e) { }
     };
   }, [folio, subscribeNotifications]);
+
+  // Suscripción STOMP específica al ticket: /topic/ticket.<folio>
+  useEffect(() => {
+    let cleanup = null;
+    const run = async () => {
+      try {
+        if (!folio || !subscribeTicketTopic) return;
+        cleanup = await subscribeTicketTopic(folio);
+      } catch (e) {
+        console.warn('subscribeTicketTopic error', e);
+      }
+    };
+    run();
+    return () => {
+      try { if (typeof cleanup === 'function') cleanup(); } catch (e) {}
+    };
+  }, [folio, subscribeTicketTopic]);
 
   // Backup: si por alguna razón la suscripción no dispara, reaccionar a cambios en el array `notifications`
   useEffect(() => {

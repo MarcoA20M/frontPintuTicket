@@ -1,6 +1,6 @@
 // src/contexts/NotificationContext.js
-import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
-import { connect as stompConnect, subscribe as stompSubscribe, disconnect as stompDisconnect, sendMessage } from '../services/stompService';
+import React, { createContext, useState, useContext, useEffect, useRef, useCallback } from 'react';
+import { connect as stompConnect, subscribe as stompSubscribe, disconnect as stompDisconnect } from '../services/stompService';
 
 const NotificationContext = createContext();
 
@@ -13,18 +13,61 @@ export const NotificationProvider = ({ children }) => {
     const IMMEDIATE_DEDUPE_MS = 5000; // evita duplicados inmediatos (cualquier origen)
     const SUPPRESS_SERVER_AFTER_LOCAL_MS = 60000; // si llegó local primero, suprime servidor hasta 60s para el mismo ticket
 
-    // Helper: ¿debemos omitir esta notificación por ser muy reciente?
-    const shouldSkip = (ticketKey) => {
-        try {
-            const recent = recentNotifRef.current.get(String(ticketKey));
-            if (!recent) return false;
-            return (Date.now() - recent.ts) < IMMEDIATE_DEDUPE_MS;
-        } catch {
-            return false;
-        }
-    };
+    // Subscripciones dinámicas por folio a topics específicos (ej: /topic/ticket.123)
+    const ticketTopicSubsRef = useRef(new Map()); // folio -> subscription
 
-    const shouldSkipServer = (ticketKey) => {
+    const getAuthSnapshot = useCallback(() => {
+        try {
+            const usuarioGuardado = localStorage.getItem('usuario');
+            const usuarioObj = usuarioGuardado ? JSON.parse(usuarioGuardado) : null;
+            const token = usuarioObj?.accessToken ?? usuarioObj?.token ?? null;
+            const userName =
+                usuarioObj?.userName ??
+                usuarioObj?.username ??
+                usuarioObj?.user ??
+                usuarioObj?.nombre ??
+                'prac1';
+            return { token, userName };
+        } catch {
+            return { token: null, userName: 'prac1' };
+        }
+    }, []);
+
+    const ensureStompConnected = useCallback(async () => {
+        const { token, userName } = getAuthSnapshot();
+        await stompConnect({
+            url: 'http://localhost:8080/ws',
+            token,
+            connectHeaders: {
+                token: token || undefined,
+                userName: userName || undefined,
+            },
+        });
+    }, [getAuthSnapshot]);
+
+    const buildUiMessage = useCallback((eventName, payload) => {
+        const folio = payload?.folio ?? payload?.ticketId ?? payload?.id ?? 'N/A';
+        const prioridad = payload?.prioridad ?? payload?.priority;
+        const ingeniero = payload?.ingeniero ?? payload?.engineer;
+        const estatus = payload?.estatus ?? payload?.status;
+
+        switch (String(eventName || '').trim()) {
+            case 'ticket.assigned':
+                return payload?.message || `Ticket ${folio} asignado${ingeniero ? ` a ${ingeniero}` : ''}.`;
+            case 'ticket.updated':
+                return payload?.message || `Ticket ${folio} actualizado${estatus ? ` (${estatus})` : ''}.`;
+            case 'ticket.priorityChanged':
+                return payload?.message || `Prioridad de ticket ${folio} cambiada${prioridad ? ` a ${prioridad}` : ''}.`;
+            case 'ticket.closed':
+                return payload?.message || `Ticket ${folio} cerrado.`;
+            case 'ticket.reassigned':
+                return payload?.message || `Ticket ${folio} reasignado.`;
+            default:
+                return payload?.message || `Ticket ${folio}: nueva notificación.`;
+        }
+    }, []);
+
+    const shouldSkipServer = useCallback((ticketKey) => {
         try {
             const recent = recentNotifRef.current.get(String(ticketKey));
             if (!recent) return false;
@@ -36,11 +79,22 @@ export const NotificationProvider = ({ children }) => {
         } catch {
             return false;
         }
-    };
+    }, [IMMEDIATE_DEDUPE_MS, SUPPRESS_SERVER_AFTER_LOCAL_MS]);
+
+    // listeners locales: permitir que componentes se suscriban directamente a notificaciones entrantes
+    const listenersRef = useRef(new Set());
+
+    const notifyListeners = useCallback((notification) => {
+        try {
+            listenersRef.current.forEach(cb => {
+                try { cb(notification); } catch (e) { console.debug('Notification listener error', e); }
+            });
+        } catch (e) {}
+    }, []);
 
     // Función para añadir una nueva notificación
     // Ahora acepta opciones: { skipBroadcast } para evitar que mensajes recibidos por BroadcastChannel/storage se re-propaguen
-    const addNotification = (ticketId, message, options = {}) => {
+    const addNotification = useCallback((ticketId, message, options = {}) => {
         const { skipBroadcast = false, origin = 'local' } = options;
         console.debug('[NotificationProvider] addNotification called', { ticketId, message, skipBroadcast });
         const newNotification = {
@@ -69,18 +123,45 @@ export const NotificationProvider = ({ children }) => {
                 }
             } catch (e) { /* ignore */ }
         }
-    };
+    }, [notifyListeners]);
 
-    // listeners locales: permitir que componentes se suscriban directamente a notificaciones entrantes
-    const listenersRef = useRef(new Set());
+    const subscribeTicketTopic = useCallback(async (folio) => {
+        const key = String(folio ?? '').trim();
+        if (!key) return () => {};
 
-    const notifyListeners = (notification) => {
-        try {
-            listenersRef.current.forEach(cb => {
-                try { cb(notification); } catch (e) { console.debug('Notification listener error', e); }
-            });
-        } catch (e) {}
-    };
+        // Evitar duplicar subscripciones para el mismo folio
+        if (ticketTopicSubsRef.current.has(key)) {
+            return () => {
+                const sub = ticketTopicSubsRef.current.get(key);
+                try { sub?.unsubscribe?.(); } catch (e) {}
+                ticketTopicSubsRef.current.delete(key);
+            };
+        }
+
+        await ensureStompConnected();
+
+        const destination = `/topic/ticket.${key}`;
+        const sub = await stompSubscribe(destination, (payload) => {
+            try {
+                console.debug('[NotificationProvider] topic payload', { destination, payload });
+                const event = payload?.event || payload?.type || payload?.evento || 'ticket.updated';
+                if (!String(event).startsWith('ticket.')) return;
+                const folioFromPayload = payload?.folio ?? payload?.ticketId ?? payload?.id ?? key;
+                const ticketKey = String(folioFromPayload || key);
+                const message = buildUiMessage(event, payload);
+                if (shouldSkipServer(ticketKey)) return;
+                addNotification(ticketKey, message, { origin: 'server' });
+            } catch (e) {
+                console.error('Error processing ticket topic payload', e);
+            }
+        });
+
+        ticketTopicSubsRef.current.set(key, sub);
+        return () => {
+            try { sub?.unsubscribe?.(); } catch (e) {}
+            ticketTopicSubsRef.current.delete(key);
+        };
+    }, [addNotification, buildUiMessage, ensureStompConnected, shouldSkipServer]);
 
     // Exponer suscripción: devuelve función de cleanup
     const subscribeNotifications = (callback) => {
@@ -124,119 +205,91 @@ export const NotificationProvider = ({ children }) => {
         return () => {
             try { if (bcRef.current) { bcRef.current.close(); bcRef.current = null; } } catch (e) {}
         };
-    }, []);
+    }, [addNotification]);
 
     // Configurar socket para recibir notificaciones push desde el servidor
     useEffect(() => {
-        let subAssigned = null;
-        let subUpdated = null;
+        let subPrivate = null;
+        let cancelled = false;
+        let lastUsuarioRaw = null;
+        let intervalId = null;
 
-        const setup = async () => {
-            const usuarioGuardado = localStorage.getItem('usuario');
-            const usuarioObj = usuarioGuardado ? JSON.parse(usuarioGuardado) : null;
-            const usuarioId = usuarioObj?.id ?? usuarioObj?.userId ?? usuarioObj?.idUsuario ?? usuarioObj?.id_usuario ?? null;
+        const cleanupSubs = () => {
+            try { if (subPrivate) subPrivate.unsubscribe(); } catch (e) {}
+            subPrivate = null;
+        };
+
+        const connectAndSubscribe = async () => {
+            cleanupSubs();
 
             try {
-                // Backend expone SockJS en "/ws" (según tu WebSocketConfig actual)
-                // Conectar al path correcto para que el handshake funcione.
-                await stompConnect({ url: 'http://localhost:8080/ws' });
+                await ensureStompConnected();
+                if (cancelled) return;
 
-                // Suscribirse a la cola privada del usuario y al topic público
-                // cola privada usada por backend: /user/{userName}/queue/notifications -> cliente subscribe a /user/queue/notifications
-                const usuarioName = usuarioObj?.userName ?? usuarioObj?.username ?? usuarioObj?.user ?? usuarioObj?.nombre ?? null;
-
-                if (usuarioName) {
-                    subAssigned = await stompSubscribe(`/user/queue/notifications`, (payload) => {
-                        // payload enviado por convertAndSendToUser
-                        console.debug('[NotificationProvider] /user/queue/notifications payload', payload);
-                        const folio = payload?.folio ?? payload?.ticketId ?? 'N/A';
-                        const ticketKey = String(folio || 'N/A');
-                        const message = payload?.message || `Ticket ${folio} ha sido actualizado.`;
-                        // Dedupe: si ya hubo notificación local o cualquier origen reciente, omitir del servidor
-                        if (shouldSkipServer(ticketKey)) {
-                            console.debug('[NotificationProvider] skipped private notif due to recent', { ticketKey });
-                            return;
-                        }
-                        addNotification(ticketKey, message, { origin: 'server' });
-                    });
-                } else {
-                    console.warn('NotificationProvider: no usuarioName in localStorage; private STOMP subscription not created');
-                }
-
-                // Suscribirse también al topic público /topic/tickets y filtrar por usuario (si el backend envía usuario en payload)
-                const subTopic = await stompSubscribe(`/topic/tickets`, (payload) => {
-                    try {
-                        console.debug('[NotificationProvider] /topic/tickets payload', payload);
-                        // --- Matching robusto entre payload y usuario local ---
-                        // Extraer folio y variantes de usuario/ID que el backend puede enviar
-                        const folio = payload?.folio ?? payload?.ticketId ?? 'N/A';
-                        const usuarioEnPayload = payload?.usuario ?? payload?.user ?? payload?.usuario_nombre;
-                        const usuarioIdEnPayload = payload?.usuario_id ?? payload?.userId;
-
-                        // Leer usuario local (variantes de claves comunes)
-                        const local = JSON.parse(localStorage.getItem('usuario') || '{}');
-                        const localName = local?.userName ?? local?.username ?? local?.nombre;
-                        const localId = local?.id ?? local?.idUsuario ?? local?.id_usuario;
-
-                        // Mensaje por defecto
-                        const ingeniero = payload?.ingeniero || '';
-                        const message = payload?.message || `Tu ticket ${folio} fue MODIFICADO ${ingeniero}`;
-
-                        // 1) Si hay ID en payload y en local -> comparar por ID (más fiable)
-                        if (localId && usuarioIdEnPayload && String(localId) === String(usuarioIdEnPayload)) {
-                            const ticketKey = String(folio || 'N/A');
-                            if (shouldSkipServer(ticketKey)) {
-                                console.debug('[NotificationProvider] skipping public notif due to recent', { ticketKey });
-                                return;
-                            }
-                            addNotification(ticketKey, message, { origin: 'server' });
-                            return;
-                        }
-
-                        // 2) Si no hay ID, comparar por nombre (case-insensitive)
-                        if (!usuarioIdEnPayload && usuarioEnPayload && localName && String(localName).toLowerCase() === String(usuarioEnPayload).toLowerCase()) {
-                            const ticketKey = String(folio || 'N/A');
-                            if (shouldSkipServer(ticketKey)) {
-                                console.debug('[NotificationProvider] skipping public notif due to recent', { ticketKey });
-                                return;
-                            }
-                            addNotification(ticketKey, message, { origin: 'server' });
-                            return;
-                        }
-
-                        // 3) Fallback global: si el payload trae folio o message y no pudimos mapear, aceptarlo como notificación global
-                        if (payload?.folio || payload?.ticketId || payload?.message) {
-                            const ticketKey = String(folio || 'N/A');
-                            if (shouldSkipServer(ticketKey)) {
-                                console.debug('[NotificationProvider] skipping public fallback notif due to recent', { ticketKey });
-                                return;
-                            }
-                            const msg = payload?.message || `Ticket ${folio}: actualización disponible.`;
-                            addNotification(ticketKey, msg, { origin: 'server' });
-                            return;
-                        }
-                        // Si no cumple ninguno, no notificar (evita ruido)
-                    } catch (e) {
-                        console.error('Error processing public topic payload', e);
+                // Suscripción privada: el backend debe resolver el Principal por el JWT
+                // y enviar con convertAndSendToUser(..., "/queue/notifications", ...)
+                subPrivate = await stompSubscribe(`/user/queue/notifications`, (payload) => {
+                    console.debug('[NotificationProvider] /user/queue/notifications payload', payload);
+                    const eventName = payload?.event || payload?.type || payload?.evento || 'ticket.updated';
+                    // Filtrado por UI: solo aceptar eventos de tickets
+                    if (!String(eventName).startsWith('ticket.')) {
+                        console.debug('[NotificationProvider] ignored non-ticket event', { eventName });
+                        return;
                     }
+
+                    const folio = payload?.folio ?? payload?.ticketId ?? payload?.id ?? 'N/A';
+                    const ticketKey = String(folio || 'N/A');
+                    const message = buildUiMessage(eventName, payload);
+                    if (shouldSkipServer(ticketKey)) {
+                        console.debug('[NotificationProvider] skipped private notif due to recent', { ticketKey });
+                        return;
+                    }
+                    addNotification(ticketKey, message, { origin: 'server' });
                 });
-                // guardar subTopic también para limpiar luego
-                subUpdated = subTopic;
             } catch (e) {
                 console.error('NotificationProvider: error connecting STOMP', e);
             }
         };
 
-        setup();
+        // 1) primer intento al montar
+        connectAndSubscribe();
+
+        // 2) reconectar al login/logout (cuando cambie localStorage.usuario) - otras pestañas
+        const onStorage = (e) => {
+            try {
+                if (!e || e.key !== 'usuario') return;
+                connectAndSubscribe();
+            } catch (err) {}
+        };
+        window.addEventListener('storage', onStorage);
+
+        // 3) reconectar en la MISMA pestaña si cambia el usuario/token
+        try {
+            lastUsuarioRaw = localStorage.getItem('usuario');
+            intervalId = window.setInterval(() => {
+                const raw = localStorage.getItem('usuario');
+                if (raw !== lastUsuarioRaw) {
+                    lastUsuarioRaw = raw;
+                    connectAndSubscribe();
+                }
+            }, 1500);
+        } catch (e) {}
 
         return () => {
+            cancelled = true;
+            window.removeEventListener('storage', onStorage);
+            try { if (intervalId) window.clearInterval(intervalId); } catch (e) {}
+            cleanupSubs();
             try {
-                if (subAssigned) subAssigned.unsubscribe();
-                if (subUpdated) subUpdated.unsubscribe();
-                stompDisconnect();
+                // limpiar topics dinámicos
+                for (const sub of ticketTopicSubsRef.current.values()) {
+                    try { sub?.unsubscribe?.(); } catch (e) {}
+                }
+                ticketTopicSubsRef.current.clear();
             } catch (e) {}
+            try { stompDisconnect(); } catch (e) {}
         };
-    }, []);
+    }, [addNotification, buildUiMessage, ensureStompConnected, shouldSkipServer]);
 
     // Nueva función para mover todas las notificaciones a la lista de "leídas"
     const markAllAsRead = () => {
@@ -245,7 +298,7 @@ export const NotificationProvider = ({ children }) => {
     };
 
     return (
-        <NotificationContext.Provider value={{ notifications, readNotifications, addNotification, markAllAsRead, subscribeNotifications }}>
+        <NotificationContext.Provider value={{ notifications, readNotifications, addNotification, markAllAsRead, subscribeNotifications, subscribeTicketTopic }}>
             {children}
         </NotificationContext.Provider>
     );
