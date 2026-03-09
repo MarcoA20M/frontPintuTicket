@@ -372,7 +372,7 @@ const Tracking = () => {
 
                         {/* footer-input se mantiene solo con comentario breve (no afecta la selección) */}
                         <div className="footer-input">
-                            <input placeholder="Agregar algún comentario" />
+                            <input style={{ width: '100%', color: 'black' }} placeholder="Agregar algún comentario" />
                             <button>↑</button>
                         </div>
                     </div>

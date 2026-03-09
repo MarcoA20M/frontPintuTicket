@@ -46,6 +46,30 @@
     position: relative;
 }
 
+.notification-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--purple-primary);
+    color: var(--text-color-light);
+    font-size: 0.75rem;
+    line-height: 1;
+    margin-left: 0.35rem;
+}
+
+/* Parpadeo cuando llegan notificaciones */
+.notifications-button--blink .header-icon {
+    animation: bellBlink 0.9s ease-in-out infinite;
+}
+
+.notification-badge--blink {
+    animation: badgePulse 0.9s ease-in-out infinite;
+}
+
 /* Estilos del panel de notificaciones */
 .notifications-dropdown {
     position: absolute;
@@ -128,5 +152,29 @@
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+@keyframes bellBlink {
+    0%,
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    50% {
+        opacity: 0.25;
+        transform: translateY(-1px);
+    }
+}
+
+@keyframes badgePulse {
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.55;
+        transform: scale(1.15);
     }
 }

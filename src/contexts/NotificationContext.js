@@ -1,6 +1,18 @@
 // src/contexts/NotificationContext.js
 import React, { createContext, useState, useContext, useEffect, useRef, useCallback } from 'react';
 import { connect as stompConnect, subscribe as stompSubscribe, disconnect as stompDisconnect } from '../services/stompService';
+import {
+    collection,
+    doc,
+    getDocs,
+    limit,
+    orderBy,
+    query,
+    serverTimestamp,
+    setDoc,
+    updateDoc,
+} from 'firebase/firestore';
+import { getFirestoreDb } from '../services/firebase';
 
 const NotificationContext = createContext();
 
@@ -32,6 +44,145 @@ export const NotificationProvider = ({ children }) => {
             return { token: null, userName: 'prac1' };
         }
     }, []);
+
+    const getUserKeySnapshot = useCallback(() => {
+        try {
+            const raw = localStorage.getItem('usuario');
+            const u = raw ? JSON.parse(raw) : null;
+            const key = u?.idUsuario ?? u?.id ?? u?.userId ?? u?.userName ?? u?.username ?? null;
+            return key ? String(key) : null;
+        } catch {
+            return null;
+        }
+    }, []);
+
+    const getNotificationsCollectionRef = useCallback((db, userKey) => {
+        return collection(db, 'users', String(userKey), 'notifications');
+    }, []);
+
+    const mapFirestoreNotifToUi = useCallback((docSnap) => {
+        const data = docSnap.data() || {};
+        const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : null;
+        return {
+            id: docSnap.id,
+            ticketId: data.ticketId,
+            message: data.message,
+            origin: data.origin,
+            read: Boolean(data.read),
+            date:
+                typeof data.date === 'string'
+                    ? data.date
+                    : createdAt
+                        ? createdAt.toLocaleDateString('es-ES')
+                        : new Date().toLocaleDateString('es-ES'),
+            createdAt: createdAt ? createdAt.getTime() : Date.now(),
+        };
+    }, []);
+
+    const persistNotificationToFirestore = useCallback(async (notification) => {
+        const db = getFirestoreDb();
+        if (!db) {
+            console.warn('[NotificationProvider] Firestore no inicializado; no se persistirá la notificación.');
+            return;
+        }
+
+        const userKey = getUserKeySnapshot();
+        if (!userKey) {
+            console.warn('[NotificationProvider] No hay userKey en localStorage.usuario; no se persistirá la notificación.');
+            return;
+        }
+
+        try {
+            const notifRef = doc(db, 'users', String(userKey), 'notifications', String(notification.id));
+            await setDoc(
+                notifRef,
+                {
+                    ticketId: notification.ticketId,
+                    message: notification.message,
+                    origin: notification.origin,
+                    read: Boolean(notification.read),
+                    date: notification.date,
+                    createdAt: serverTimestamp(),
+                },
+                { merge: true }
+            );
+
+            if (process.env.NODE_ENV !== 'production') {
+                console.info('[NotificationProvider] Firestore saved:', `users/${String(userKey)}/notifications/${String(notification.id)}`);
+            }
+        } catch (e) {
+            // Esto suele ser "permission-denied" por reglas de Firestore o falta de Auth
+            console.error('[NotificationProvider] Firestore persist failed', e);
+        }
+    }, [getUserKeySnapshot]);
+
+    // Cargar notificaciones persistidas (si Firebase está configurado) al iniciar/cambiar usuario
+    useEffect(() => {
+        let cancelled = false;
+        let intervalId = null;
+        let lastUserKey = null;
+
+        const loadFromFirestore = async (forcedUserKey = null) => {
+            const db = getFirestoreDb();
+            if (!db) {
+                // Firebase no configurado: no hacemos nada
+                return;
+            }
+
+            const userKey = forcedUserKey !== null ? forcedUserKey : getUserKeySnapshot();
+            if (!userKey) {
+                // Sin usuario: limpiar en memoria
+                setNotifications([]);
+                setReadNotifications([]);
+                return;
+            }
+
+            try {
+                const colRef = getNotificationsCollectionRef(db, userKey);
+                const q = query(colRef, orderBy('createdAt', 'desc'), limit(80));
+                const snap = await getDocs(q);
+                if (cancelled) return;
+
+                const all = snap.docs.map(mapFirestoreNotifToUi);
+                const unread = all.filter(n => !n.read);
+                const read = all.filter(n => n.read);
+                setNotifications(unread);
+                setReadNotifications(read);
+            } catch (e) {
+                console.error('[NotificationProvider] Firestore load failed', e);
+            }
+        };
+
+        // Primera carga
+        lastUserKey = getUserKeySnapshot();
+        loadFromFirestore(lastUserKey);
+
+        // Recargar si cambia usuario en la misma pestaña o desde otra pestaña
+        const onStorage = (e) => {
+            try {
+                if (!e || e.key !== 'usuario') return;
+                lastUserKey = getUserKeySnapshot();
+                loadFromFirestore(lastUserKey);
+            } catch (err) {}
+        };
+        window.addEventListener('storage', onStorage);
+
+        try {
+            intervalId = window.setInterval(() => {
+                const current = getUserKeySnapshot();
+                if (current !== lastUserKey) {
+                    lastUserKey = current;
+                    loadFromFirestore(lastUserKey);
+                }
+            }, 1500);
+        } catch (e) {}
+
+        return () => {
+            cancelled = true;
+            window.removeEventListener('storage', onStorage);
+            try { if (intervalId) window.clearInterval(intervalId); } catch (e) {}
+        };
+    }, [getNotificationsCollectionRef, getUserKeySnapshot, mapFirestoreNotifToUi]);
 
     const ensureStompConnected = useCallback(async () => {
         const { token, userName } = getAuthSnapshot();
@@ -95,14 +246,16 @@ export const NotificationProvider = ({ children }) => {
     // Función para añadir una nueva notificación
     // Ahora acepta opciones: { skipBroadcast } para evitar que mensajes recibidos por BroadcastChannel/storage se re-propaguen
     const addNotification = useCallback((ticketId, message, options = {}) => {
-        const { skipBroadcast = false, origin = 'local' } = options;
+        const { skipBroadcast = false, origin = 'local', persist = origin !== 'broadcast' } = options;
         console.debug('[NotificationProvider] addNotification called', { ticketId, message, skipBroadcast });
+        const notifId = `notif_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
         const newNotification = {
-            id: Date.now(),
+            id: notifId,
             ticketId: ticketId,
             message: message,
             date: new Date().toLocaleDateString('es-ES'),
             origin,
+            read: false,
         };
         setNotifications(prevNotifications => [newNotification, ...prevNotifications]);
         // avisar a listeners locales (componentes suscritos)
@@ -123,7 +276,12 @@ export const NotificationProvider = ({ children }) => {
                 }
             } catch (e) { /* ignore */ }
         }
-    }, [notifyListeners]);
+
+        // Persistir en Firestore (si está configurado)
+        if (persist) {
+            persistNotificationToFirestore(newNotification);
+        }
+    }, [notifyListeners, persistNotificationToFirestore]);
 
     const subscribeTicketTopic = useCallback(async (folio) => {
         const key = String(folio ?? '').trim();
@@ -214,6 +372,9 @@ export const NotificationProvider = ({ children }) => {
         let lastUsuarioRaw = null;
         let intervalId = null;
 
+        // Capturar ref actual para evitar warning de refs mutables en cleanup
+        const ticketTopicSubs = ticketTopicSubsRef.current;
+
         const cleanupSubs = () => {
             try { if (subPrivate) subPrivate.unsubscribe(); } catch (e) {}
             subPrivate = null;
@@ -282,10 +443,10 @@ export const NotificationProvider = ({ children }) => {
             cleanupSubs();
             try {
                 // limpiar topics dinámicos
-                for (const sub of ticketTopicSubsRef.current.values()) {
+                for (const sub of ticketTopicSubs.values()) {
                     try { sub?.unsubscribe?.(); } catch (e) {}
                 }
-                ticketTopicSubsRef.current.clear();
+                ticketTopicSubs.clear();
             } catch (e) {}
             try { stompDisconnect(); } catch (e) {}
         };
@@ -295,6 +456,25 @@ export const NotificationProvider = ({ children }) => {
     const markAllAsRead = () => {
         setReadNotifications(prevRead => [...prevRead, ...notifications]);
         setNotifications([]); // Limpia la lista de notificaciones no leídas
+
+        // Marcar como leídas en Firestore (si está configurado)
+        (async () => {
+            const db = getFirestoreDb();
+            if (!db) return;
+            const userKey = getUserKeySnapshot();
+            if (!userKey) return;
+
+            try {
+                // Actualizar solo las que tenemos en memoria (evita scans grandes)
+                const updates = notifications.map((n) => {
+                    const ref = doc(db, 'users', String(userKey), 'notifications', String(n.id));
+                    return updateDoc(ref, { read: true });
+                });
+                await Promise.allSettled(updates);
+            } catch (e) {
+                console.debug('[NotificationProvider] Firestore markAllAsRead failed', e);
+            }
+        })();
     };
 
     return (

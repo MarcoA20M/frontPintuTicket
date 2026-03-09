@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import './Styles/header.css';
 import logo50 from '../assets/50.png';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -7,11 +7,40 @@ import { getUsuarioById } from '../services/usuarioService';
 
 const Header = () => {
     const [showNotifications, setShowNotifications] = useState(false);
-    const { notifications } = useNotifications();
+    const [isBlinking, setIsBlinking] = useState(false);
+    const { notifications = [] } = useNotifications();
     const navigate = useNavigate();
 
+    const prevNotificationCountRef = useRef(notifications.length);
+
+    useEffect(() => {
+        const prevCount = prevNotificationCountRef.current;
+        const currentCount = notifications.length;
+
+        // Actualiza el contador para el siguiente render
+        prevNotificationCountRef.current = currentCount;
+
+        // Parpadea solo cuando llega (aumenta) el número de notificaciones.
+        // Se mantiene hasta que el usuario abra el panel.
+        if (currentCount > prevCount && !showNotifications) {
+            setIsBlinking(true);
+        }
+
+        // Si ya no hay notificaciones, aseguramos que no parpadee
+        if (currentCount === 0) {
+            setIsBlinking(false);
+        }
+    }, [notifications.length, showNotifications]);
+
     const handleToggleNotifications = () => {
-        setShowNotifications(!showNotifications);
+        setShowNotifications((prev) => {
+            const next = !prev;
+            // Si el usuario abre el panel, detenemos el parpadeo
+            if (next) {
+                setIsBlinking(false);
+            }
+            return next;
+        });
     };
 
     const handleShowPerfil = async () => {
@@ -56,7 +85,7 @@ const Header = () => {
             <div className="notifications-container">
                 <button
                     onClick={handleToggleNotifications}
-                    className="header-link notifications-button"
+                    className={`header-link notifications-button ${isBlinking ? 'notifications-button--blink' : ''}`}
                     >
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -73,9 +102,9 @@ const Header = () => {
                         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                         <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                     </svg>
-                    <span>Notificaciones</span>
+                    
                     {notifications.length > 0 && (
-                        <span className="notification-badge">
+                        <span className={`notification-badge ${isBlinking ? 'notification-badge--blink' : ''}`}>
                             {notifications.length}
                         </span>
                     )}
