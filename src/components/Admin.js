@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { getAllTickets } from "../services/ticketService";
 import { useNavigate } from "react-router-dom";
+import * as echarts from 'echarts';
+
 
 const Card = ({ title, value, bgColor }) => (
+
   <div
     style={{
       background: bgColor || "rgba(255,255,255,0.06)",
@@ -12,6 +15,7 @@ const Card = ({ title, value, bgColor }) => (
       textAlign: "center",
     }}
   >
+
     <div style={{ fontSize: 45, fontWeight: 800, color: "#fff" }}>{value}</div>
     <div style={{ fontSize: 16, color: "#fff", opacity: 0.95, marginTop: 8 }}>
       {title}
@@ -32,6 +36,9 @@ const Admin = () => {
   const [usuario, setUsuario] = useState(null);
   const [tickets, setTickets] = useState([]);
   const navigate = useNavigate();
+  const chartRef = useRef(null);
+
+  
 
   useEffect(() => {
     const usuarioGuardado = localStorage.getItem("usuario");
@@ -52,6 +59,56 @@ const Admin = () => {
     fetchTickets();
   }, []);
 
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    const dom = chartRef.current;
+    const existing = echarts.getInstanceByDom(dom);
+    const chart = existing ?? echarts.init(dom);
+
+    const enProgreso = tickets.filter((t) => t.estatus === "En Progreso").length;
+    const cerrados = tickets.filter(
+      (t) => t.estatus === "Cerrado" || t.estatus === "Cerrados"
+    ).length;
+    const pendientes = tickets.filter((t) => t.estatus === "Abierto").length;
+
+    const option = {
+      tooltip: {
+        trigger: "item",
+      },
+      series: [
+        {
+          name: "Tickets",
+          type: "pie",
+          radius: "70%",
+          data: [
+            { value: enProgreso, name: "En progreso" },
+            { value: cerrados, name: "Cerrados" },
+            { value: pendientes, name: "Pendientes" },
+          ],
+          emphasis: {
+            itemStyle: {
+              shadowBlur: 10,
+              shadowOffsetX: 0,
+            },
+          },
+          label: {
+            color: "#fff",
+          },
+        },
+      ],
+    };
+
+    chart.setOption(option);
+
+    const onResize = () => chart.resize();
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      chart.dispose();
+    };
+  }, [tickets]);
+
   if (!usuario) {
     return (
       <div style={{ color: "#fff", textAlign: "center", marginTop: "40px" }}>
@@ -59,7 +116,6 @@ const Admin = () => {
       </div>
     );
   }
-
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
 
@@ -83,8 +139,8 @@ const Admin = () => {
           }}
         >
           <Card
-            title="En proceso"
-            value={tickets.filter((t) => t.estatus === "En proceso").length}
+            title="En progreso"
+            value={tickets.filter((t) => t.estatus === "En Progreso").length}
             bgColor={"rgba(255, 255, 255, 0.12)"}
           />
           <Card
@@ -96,7 +152,7 @@ const Admin = () => {
           />
           <Card
             title="Pendientes"
-            value={tickets.filter((t) => t.estatus === "Pendiente").length}
+            value={tickets.filter((t) => t.estatus === "Abierto").length}
             bgColor={"rgba(255,255,255,0.12)"}
           />
         </div>
@@ -209,25 +265,12 @@ const Admin = () => {
           </div>
 
           {/* Panel de resumen mensual */}
-          <div style={{ flex: 1.4, ...glassStyle, color: "#fff" }}>
-            <h3 style={{ marginTop: 0, fontSize: 19 }}>Resumen mensual</h3>
+          <div className="circulo" style={{ flex: 1.4, ...glassStyle, color: "#fff" }}>
+            <h3 style={{ marginTop: 0, fontSize: 19 }}>Resumen mensual de tickets levantados</h3>
             <div
-              style={{
-                height: 256,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <div
-                style={{
-                  width: "80%",
-                  height: "84%",
-                  background: "linear-gradient(180deg,#ffdb5c,#ff6ea1)",
-                  borderRadius: 10,
-                }}
-              />
-            </div>
+              ref={chartRef}
+              style={{ width: "100%", height: 320 }}
+            />
           </div>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { useNotifications } from '../contexts/NotificationContext';
 import { useNavigate } from 'react-router-dom';
 import { getUsuarioById } from '../services/usuarioService';
 
+
 const Header = () => {
     const [showNotifications, setShowNotifications] = useState(false);
     const [isBlinking, setIsBlinking] = useState(false);
