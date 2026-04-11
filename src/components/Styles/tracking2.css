@@ -1,0 +1,284 @@
+/* ==========================================================================
+   TRACKING COMPLETO - AJUSTE DE ALTURA Y RESPONSIVO (Glassmorphism)
+   ========================================================================== */
+
+:root {
+  --accent-cyan: #00f2fe;
+  --accent-pink: #ec4899;
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.15);
+  --text-dim: rgba(255, 255, 255, 0.6);
+  /* Stack de fuentes más limpio y moderno */
+  --font-main: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Contenedor Raíz */
+.tracking-user-root {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  padding-left: 40px;
+  color: #fff;
+  font-family: var(--font-main);
+}
+
+.tracking-user-content {
+  flex: 1;
+  padding: 10px 28px 28px 28px; 
+}
+
+/* Header */
+.tracking-user-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px; 
+}
+
+/* Stats Cards (Superiores) */
+.tracking-user-stats {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.tracking-user-card {
+  flex: 1;
+  background: var(--glass-bg);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  padding: 18px 24px; 
+  border-radius: 16px;
+  min-width: 260px;
+  box-sizing: border-box;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease;
+}
+
+.tracking-user-card:hover {
+  transform: translateY(-5px);
+}
+
+.tracking-user-card-total { border-top: 4px solid var(--accent-cyan); }
+.tracking-user-card-closed { border-top: 4px solid var(--accent-pink); }
+
+.tracking-user-card-label {
+  font-size: 11px; /* Un poco más pequeña para elegancia */
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+}
+
+.tracking-user-card-number {
+  font-size: 42px; 
+  font-weight: 800;
+  margin-top: 4px;
+  line-height: 1;
+  letter-spacing: -1px; /* Números más compactos */
+}
+
+.tracking-user-card-total .tracking-user-card-number {
+  color: var(--accent-cyan);
+  text-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
+}
+
+.tracking-user-card-closed .tracking-user-card-number {
+  color: var(--accent-pink);
+  text-shadow: 0 0 15px rgba(236, 72, 153, 0.4);
+}
+
+/* Filtro (Input Folio) */
+.tracking-user-filter {
+  margin-left: auto;
+  align-self: center;
+}
+
+.tracking-user-filter input {
+  padding: 10px 20px;
+  border-radius: 25px;
+  border: 1px solid var(--glass-border);
+  outline: none;
+  min-width: 240px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-family: var(--font-main);
+  backdrop-filter: blur(5px);
+  transition: all 0.3s ease;
+}
+
+/* Panel de Listado */
+.tracking-user-panel {
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+  padding: 20px; 
+  border-radius: 20px;
+  border: 1px solid var(--glass-border);
+}
+
+.tracking-user-panel hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--glass-border), transparent);
+  margin: 15px 0; 
+}
+
+/* Ticket Cards (Elementos de la Lista) */
+.ticket-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ticket-card {
+  background: var(--glass-bg);
+  padding: 16px 20px; 
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.ticket-card:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateX(8px);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.ticket-card.selected {
+  background: linear-gradient(90deg, rgba(0, 242, 254, 0.15), rgba(236, 72, 153, 0.05));
+  border-left: 5px solid var(--accent-cyan);
+}
+
+/* Contenido de la Card */
+.ticket-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.ticket-card-info {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+
+.ticket-card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+  letter-spacing: -0.2px;
+}
+
+.ticket-card-desc {
+  font-size: 13.5px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.8);
+  max-width: 85%;
+  line-height: 1.4;
+}
+
+.ticket-card-right {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+/* Paginación */
+.tracking-user-pagination {
+  margin-top: 18px;
+}
+
+.pagination {
+  display: flex;
+  list-style: none;
+  padding: 0;
+  gap: 8px;
+  justify-content: center;
+}
+
+.page-item .page-link {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.page-item.active .page-link {
+  background: var(--accent-pink);
+  border-color: var(--accent-pink);
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.4);
+}
+
+/* Scrollbar */
+.ticket-cards::-webkit-scrollbar { width: 5px; }
+.ticket-cards::-webkit-scrollbar-thumb {
+  background: var(--glass-border);
+  border-radius: 10px;
+}
+
+/* RESPONSIVO */
+@media (max-width: 768px) {
+  .tracking-user-root { padding-left: 0; }
+  .tracking-user-content { padding: 10px 15px; }
+  .tracking-user-stats { gap: 10px; }
+  .ticket-card-top { flex-direction: column; }
+  .ticket-card-right { text-align: left; align-items: flex-start; margin-top: 10px; }
+}
+
+/* ==========================================================================
+   COLORES DE ESTADOS (ESTILO GLOW PROFESIONAL)
+   ========================================================================== */
+
+.status-badge {
+  padding: 5px 14px;
+  border-radius: 8px; /* Cambiado a un look más de "etiqueta" moderno */
+  font-weight: 800; 
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: inline-block;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+/* Estado: ABIERTO - Verde Esmeralda */
+.status-badge.status-open {
+  background: rgba(0, 255, 136, 0.15) !important;
+  color: #00ff88 !important;
+  border: 1px solid rgba(0, 255, 136, 0.4) !important;
+  text-shadow: 0 0 5px rgba(0, 255, 136, 0.5);
+}
+
+/* Estado: EN PROGRESO - Oro Neón */
+.status-badge.status-progress {
+  background: rgba(255, 184, 0, 0.15) !important;
+  color: #ffb800 !important;
+  border: 1px solid rgba(255, 184, 0, 0.4) !important;
+  text-shadow: 0 0 5px rgba(255, 184, 0, 0.5);
+}
+
+/* Estado: OTROS / CERRADO - Hot Pink */
+.status-badge.status-other {
+  background: rgba(236, 72, 153, 0.15) !important;
+  color: #ff4d91 !important;
+  border: 1px solid rgba(236, 72, 153, 0.4) !important;
+  text-shadow: 0 0 5px rgba(236, 72, 153, 0.5);
+}
+
+

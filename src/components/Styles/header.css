@@ -1,5 +1,4 @@
-/* src/Styles/header.css */
-
+/* ===== HEADER ===== */
 .header {
     display: flex;
     justify-content: flex-end;
@@ -10,7 +9,8 @@
     padding-right: 0.1rem;
 }
 
-.header-link, .notifications-button {
+.header-link,
+.notifications-button {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -19,13 +19,15 @@
     color: var(--text-color-light);
     text-decoration: none;
     font-size: 0.9rem;
-    transition: all 0.3s ease;
+    transition: all 0.25s ease;
     background: transparent;
     border: none;
     cursor: pointer;
+    margin-top: -40px; 
 }
 
-.header-link:hover, .notifications-button:hover {
+.header-link:hover,
+.notifications-button:hover {
     background: rgba(255, 255, 255, 0.1);
     transform: translateY(-2px);
 }
@@ -41,11 +43,12 @@
     height: auto;
 }
 
-/* Nuevo contenedor para el botón y el panel */
+/* ===== CONTENEDOR ===== */
 .notifications-container {
     position: relative;
 }
 
+/* ===== BADGE ===== */
 .notification-badge {
     display: inline-flex;
     align-items: center;
@@ -54,14 +57,140 @@
     height: 18px;
     padding: 0 6px;
     border-radius: 999px;
-    background: var(--purple-primary);
-    color: var(--text-color-light);
+
+    background: linear-gradient(135deg, #7b2ff7, #c084fc);
+    color: white;
     font-size: 0.75rem;
-    line-height: 1;
+    font-weight: 600;
+
     margin-left: 0.35rem;
+    box-shadow: 0 0 12px rgba(123, 47, 247, 0.8);
 }
 
-/* Parpadeo cuando llegan notificaciones */
+/* ===== DROPDOWN ===== */
+.notifications-dropdown {
+    position: absolute;
+    top: 110%;
+    right: 0;
+    width: 340px;
+
+    /* 🔥 DARK MORADO */
+    background: linear-gradient(145deg, #1a1333, #24194d);
+
+    backdrop-filter: blur(16px);
+
+    border-radius: 16px;
+
+    box-shadow:
+        0 12px 30px rgba(0, 0, 0, 0.6),
+        0 0 20px rgba(123, 47, 247, 0.25);
+
+    padding: 1rem;
+    z-index: 50;
+
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+
+    animation: fadeIn 0.25s ease;
+}
+
+/* ===== HEADER DROPDOWN ===== */
+.notifications-dropdown h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #c4b5fd;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(123, 47, 247, 0.3);
+}
+
+/* ===== TEXTO VACÍO ===== */
+.notifications-dropdown p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #a78bfa;
+    text-align: center;
+    padding: 0.5rem 0;
+}
+
+/* ===== LISTA ===== */
+.notifications-dropdown ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+/* SCROLL */
+.notifications-dropdown ul::-webkit-scrollbar {
+    width: 6px;
+}
+
+.notifications-dropdown ul::-webkit-scrollbar-thumb {
+    background: rgba(123, 47, 247, 0.5);
+    border-radius: 10px;
+}
+
+/* ===== ITEM ===== */
+.notification-item {
+    border-radius: 12px;
+    padding: 0.7rem 0.9rem;
+
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(123, 47, 247, 0.25);
+
+    transition: all 0.25s ease;
+    cursor: pointer;
+}
+
+/* HOVER */
+.notification-item:hover {
+    background: rgba(123, 47, 247, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(123, 47, 247, 0.4);
+}
+
+/* ===== TEXTO ===== */
+.notification-message {
+    font-size: 0.9rem;
+    margin: 0;
+    line-height: 1.4;
+    color: #f3f0ff;
+    font-weight: 500;
+}
+
+.notification-date {
+    font-size: 0.75rem;
+    color: #b4a7ff;
+    display: block;
+    margin-top: 0.3rem;
+}
+
+/* ===== ANIMACIONES ===== */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ===== EFECTOS ===== */
 .notifications-button--blink .header-icon {
     animation: bellBlink 0.9s ease-in-out infinite;
 }
@@ -70,111 +199,22 @@
     animation: badgePulse 0.9s ease-in-out infinite;
 }
 
-/* Estilos del panel de notificaciones */
-.notifications-dropdown {
-    position: absolute;
-    top: 100%; /* Se posiciona debajo del botón */
-    right: 0;
-    width: 320px;
-    background-color: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(8px);
-    border-radius: 10px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-    padding: 0.75rem;
-    color: var(--text-color-dark);
-    z-index: 20;
-    margin-top: 0.5rem;
-    animation: fadeIn 0.2s ease-out;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    color: black;
-}
-
-.notifications-dropdown h3  {
-    margin: 0 0 0.5rem 0;
-    font-size: 1rem;
-    border-bottom: 1px solid #e6e6e6;
-    padding-bottom: 0.4rem;
-
-}
-
-.notifications-dropdown p {
-    margin: 0 0 0.5rem 0;
-    font-size: 1rem;
-    border-bottom: 1px solid #e6e6e6;
-    padding-bottom: 0.4rem;
-    color: black;
-    
-}
-
-.notifications-dropdown ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column; /* columna vertical */
-    gap: 0.5rem; /* separación entre items */
-    max-height: 280px; /* limitar altura y permitir scroll */
-    overflow-y: auto;
-}
-
-.notification-item {
-    border-radius: 8px;
-    background: rgba(0,0,0,0.02);
-    padding: 0.6rem 0.8rem;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03) inset;
-}
-
-.notification-item:last-child {
-    margin-bottom: 0;
-}
-
-.notification-message {
-    font-size: 0.9rem;
-    margin: 0;
-    line-height: 1.4;
-    color: black;
-}
-
-.notification-date {
-    font-size: 0.75rem;
-    color: #666;
-    display: block;
-    margin-top: 0.25rem;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
 @keyframes bellBlink {
-    0%,
-    100% {
+    0%,100% {
         opacity: 1;
         transform: translateY(0);
     }
     50% {
-        opacity: 0.25;
-        transform: translateY(-1px);
+        opacity: 0.3;
+        transform: translateY(-2px);
     }
 }
 
 @keyframes badgePulse {
-    0%,
-    100% {
-        opacity: 1;
+    0%,100% {
         transform: scale(1);
     }
     50% {
-        opacity: 0.55;
-        transform: scale(1.15);
+        transform: scale(1.2);
     }
 }

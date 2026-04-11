@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getTicketsByUsuarioId } from '../services/ticketService';
 import Sidebar from './Sidebar';
-import './Styles/tracking.css';
+import './Styles/tracking2.css';
 
 const TrackingUser = () => {
     const navigate = useNavigate();

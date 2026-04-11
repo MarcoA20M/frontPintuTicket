@@ -1,26 +1,25 @@
 import React, { useState, useEffect } from "react";
 import { getAllTipoTickets } from "../services/tipoTicketService";
-// import { createTicket, hayTicketMaestroEnProceso } from "../services/ticketService";
-import { createTicketCreate, getTicketById } from '../services/ticketService';
+import { createTicketCreate } from '../services/ticketService';
 import { useNotifications } from '../contexts/NotificationContext';
 import '../components/Styles/mainContent.css';
 
 const MainContent = () => {
-    // 1. Estados para la lógica de la UI y el chat
+
     const [messages, setMessages] = useState([]);
     const [issue, setIssue] = useState("");
     const [loadingTipos, setLoadingTipos] = useState(true);
     const [showBackButton, setShowBackButton] = useState(false);
 
-    // 2. Estados para la lógica de selección de tickets
     const [tipoTickets, setTipoTickets] = useState([]);
     const [ticketSeleccionado, setTicketSeleccionado] = useState(null);
     const [selectedRequerimiento, setSelectedRequerimiento] = useState(false);
     const [subTipoSeleccionado, setSubTipoSeleccionado] = useState(null);
 
-    const { addNotification, subscribeNotifications } = useNotifications();
+    const [cantidad, setCantidad] = useState(1);
 
-    // Obtener usuario autenticado de localStorage
+    const { addNotification } = useNotifications();
+
     let usuarioLocal = null;
     try {
         const usuarioGuardado = localStorage.getItem('usuario');
@@ -38,137 +37,131 @@ const MainContent = () => {
     };
 
     useEffect(() => {
-        // Suscribirse al NotificationProvider para reflejar notificaciones (locales o del servidor)
-        // const unsubscribe = subscribeNotifications((notif) => {
-        //     if (!notif || !notif.message) return;
-        //     setMessages(prev => [...prev, { text: `🔔 ${notif.message}`, sender: 'system' }]);
-        // });
-
         const fetchTipos = async () => {
             try {
                 const data = await getAllTipoTickets();
                 setTipoTickets(data);
             } catch (error) {
-                console.error("Error cargando tipos de tickets:", error);
+                console.error("Error cargando tipos:", error);
             } finally {
                 setLoadingTipos(false);
             }
         };
         fetchTipos();
-
-        // return () => {
-        //     // limpiar suscripción al provider
-        //     try { if (typeof unsubscribe === 'function') unsubscribe(); } catch (e) {}
-        // };
     }, []);
 
     const handleTipoClick = (tipo) => {
         setTicketSeleccionado(tipo);
-        // marcar este mensaje como 'selected' para estilos especiales
         setMessages(prev => [...prev, { text: `Has seleccionado: ${tipo.tipo}`, sender: "user", selected: true }]);
         setShowBackButton(true);
-        
+
         if (tipo.tipo === "Requerimiento") {
             setSelectedRequerimiento(true);
             setMessages(prev => [...prev, { text: "Selecciona el tipo de requerimiento:", sender: "system" }]);
         } else {
-            setSelectedRequerimiento(false);
-            setMessages(prev => [...prev, { text: `Describe tu problema relacionado con: ${tipo.tipo}`, sender: "system" }]);
+            // 🔥 SI NO ES REQUERIMIENTO → CREA DIRECTO
+            crearTicketDirecto(tipo.tipo, "Ticket generado sin descripción");
         }
     };
 
     const handleRequerimientoSubClick = (subTipo) => {
         setSubTipoSeleccionado(subTipo);
         setSelectedRequerimiento(false);
-        setMessages(prev => [...prev, { text: `Has seleccionado: ${subTipo}`, sender: "user", selected: true }, { text: `Describe tu problema relacionado con: ${subTipo}`, sender: "system" }]);
+        setCantidad(1);
+
+        setMessages(prev => [
+            ...prev,
+            { text: `Has seleccionado: ${subTipo}`, sender: "user", selected: true }
+        ]);
     };
-    
-    // Función para regresar al paso anterior, reseteando todo
+
     const handleBackClick = () => {
-        setMessages([]); // Resetea el historial de mensajes
+        setMessages([]);
         setTicketSeleccionado(null);
         setSelectedRequerimiento(false);
         setSubTipoSeleccionado(null);
+        setCantidad(1);
         setShowBackButton(false);
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!ticketSeleccionado || selectedRequerimiento) {
-            setMessages(prev => [...prev, { text: "⚠️ Primero selecciona un tipo de ticket.", sender: "system" }]);
-            return;
-        }
-
-        const userInput = issue.trim();
-        if (!userInput) return;
-
-        setMessages(prev => [...prev, { text: userInput, sender: "user" }]);
-        setIssue("");
-
-        let finalDescription = userInput;
-        if (subTipoSeleccionado) {
-            finalDescription = `${subTipoSeleccionado}: ${userInput}`;
-        }
-
+    // 🔥 FUNCIÓN CENTRAL PARA CREAR TICKET
+    const crearTicketDirecto = async (tipo, descripcion) => {
         const requestBody = {
             ...staticData,
             estatus: "Abierto",
-            tipo_ticket: ticketSeleccionado.tipo,
-            descripcion: finalDescription,
+            tipo_ticket: tipo,
+            descripcion: descripcion,
             fechaCreacion: new Date().toISOString(),
         };
 
         try {
-            // const maestroActivo = await hayTicketMaestroEnProceso(requestBody.tipo_ticket);
-            // if (maestroActivo) {
-            //     const continuar = window.confirm("Ya hay un Ticket Maestro en proceso para este tipo de ticket. ¿Deseas continuar y crear tu ticket?");
-            //     if (!continuar) {
-            //         setMessages(prev => [...prev, { text: "Se canceló la creación del ticket.", sender: "system" }]);
-            //         setTicketSeleccionado(null);
-            //         setSubTipoSeleccionado(null);
-            //         setShowBackButton(false);
-            //         return;
-            //     }
-            // }
-
             const createdTicket = await createTicketCreate(requestBody);
+
             addNotification(
                 createdTicket.folio,
                 `Tu nuevo ticket ha sido creado.`
             );
 
             setMessages(prev => [...prev, {
-                text: `✅ Ticket enviado con éxito. Folio: ${createdTicket.folio} Estatus: ${createdTicket.estatus} Ingeniero asignado: ${createdTicket.ingeniero}`,
+                text: `✅ Ticket creado automáticamente\nFolio: ${createdTicket.folio}`,
                 sender: "system"
             }]);
 
+            // reset
             setTicketSeleccionado(null);
             setSubTipoSeleccionado(null);
+            setCantidad(1);
             setShowBackButton(false);
+
         } catch (error) {
-            console.error("Error al enviar el ticket:", error);
-            // Mostrar el mensaje de error devuelto por el servicio cuando sea posible
-            const detalle = error && error.message ? error.message : 'Error desconocido al enviar el ticket.';
-            setMessages(prev => [...prev, { text: `❌ Error al enviar el ticket: ${detalle}`, sender: "system" }]);
+            setMessages(prev => [...prev, {
+                text: `❌ Error: ${error.message}`,
+                sender: "system"
+            }]);
         }
+    };
+
+    // 🔥 SUBMIT SOLO PARA RATONES/TECLADOS
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        if (!ticketSeleccionado) return;
+
+        // 🔥 SI ES RATONES O TECLADOS → CREA DIRECTO
+        if (subTipoSeleccionado === "Ratones" || subTipoSeleccionado === "Teclados") {
+
+            const descripcion = `${subTipoSeleccionado} (Cantidad: ${cantidad})`;
+
+            await crearTicketDirecto(ticketSeleccionado.tipo, descripcion);
+            return;
+        }
+
+        // 🔥 OTROS CASOS → NORMAL
+        const userInput = issue.trim();
+        if (!userInput) return;
+
+        await crearTicketDirecto(ticketSeleccionado.tipo, userInput);
+        setIssue("");
     };
 
     return (
         <main className="main-content">
+
             {showBackButton && (
                 <button className="back-button" onClick={handleBackClick}>
                     ← Regresar
                 </button>
             )}
+
             <h1>¿Cuál es tu necesidad?</h1>
+
             <div className="chat-history">
                 {messages.map((msg, idx) => (
-                    <div  key={idx} className={`message-bubble ${msg.sender} ${msg.selected ? 'selected' : ''}`}>
-                        {msg.text.split("\n").map((line, i) => (
-                            <p key={i} style={{ margin: 0 }}>{line}</p>
-                        ))}
+                    <div key={idx} className={`message-bubble ${msg.sender} ${msg.selected ? 'selected' : ''}`}>
+                        <p>{msg.text}</p>
                     </div>
                 ))}
+
                 {!ticketSeleccionado && !loadingTipos && (
                     <div className="tipo-container">
                         {tipoTickets.map(tipo => (
@@ -182,28 +175,43 @@ const MainContent = () => {
                         ))}
                     </div>
                 )}
+
                 {selectedRequerimiento && (
                     <div className="tipo-container">
-                        <button className="back-button" onClick={handleBackClick}>
-                            ← Regresar
-                        </button>
                         <button className="tipo-button" onClick={() => handleRequerimientoSubClick("Ratones")}>Ratones</button>
                         <button className="tipo-button" onClick={() => handleRequerimientoSubClick("Equipo de Computo")}>Equipo de Computo</button>
-                        <button className="tipo-button" onClick={() => handleRequerimientoSubClick("Teclado")}>Teclado</button>
+                        <button className="tipo-button" onClick={() => handleRequerimientoSubClick("Teclados")}>Teclados</button>
+                    </div>
+                )}
+
+                {(subTipoSeleccionado === "Ratones" || subTipoSeleccionado === "Teclados") && (
+                    <div className="cantidad-container">
+                        <label>Cantidad:</label>
+                        <input
+                            type="number"
+                            min="1"
+                            value={cantidad}
+                            onChange={(e) => setCantidad(e.target.value)}
+                        />
                     </div>
                 )}
             </div>
+
             <form onSubmit={handleSubmit} className="input-container">
                 <input
                     type="text"
                     className="issue-input"
-                    placeholder="Describe tu problema..."
+                    placeholder={
+                        (subTipoSeleccionado === "Ratones" || subTipoSeleccionado === "Teclados")
+                        ? "Presiona Enter para crear el ticket"
+                        : "Describe tu problema..."
+                    }
                     value={issue}
                     onChange={(e) => setIssue(e.target.value)}
-                    disabled={!ticketSeleccionado || selectedRequerimiento}
                 />
-                <button type="submit" className="send-button" disabled={!ticketSeleccionado || selectedRequerimiento}>➤</button>
+                <button type="submit" className="send-button">➤</button>
             </form>
+
         </main>
     );
 };

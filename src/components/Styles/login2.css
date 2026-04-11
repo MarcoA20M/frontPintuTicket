@@ -4,14 +4,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-
-  /* 🔥 IMAGEN + OVERLAY */
- background: url('/src/assets/fondo-pintura.png');
-
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-
+  background: linear-gradient(135deg, #140a28, #2a0c4e, #6a1b9a);
   font-family: 'Segoe UI', sans-serif;
 }
 
@@ -19,7 +12,7 @@
 .login-form {
   width: 400px;
   background: rgba(20, 10, 40, 0.95);
-  backdrop-filter: blur(25px);
+  backdrop-filter: blur(20px);
   border-radius: 20px;
   padding: 30px;
   border: 2px solid #b84cff;
@@ -38,7 +31,7 @@
   }
 }
 
-/* ================== TITULO ================== */
+/* TITULO */
 .login-form h2 {
   text-align: center;
   color: #ffffff;
@@ -64,7 +57,6 @@
 
 .input-group input:focus {
   border: 1px solid #ff4fc3;
-  box-shadow: 0 0 10px #ff4fc3;
 }
 
 .input-group label {
@@ -125,7 +117,6 @@
 .login-button:hover {
   opacity: 0.85;
   box-shadow: 0 0 20px #ff4fc3;
-  transform: translateY(-2px);
 }
 
 /* ================== LINKS ================== */
