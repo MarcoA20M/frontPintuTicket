@@ -58,14 +58,78 @@ const iconBadgeStyle = {
   justifyContent: "center"
 };
 
+const monthLabels = [
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "sep",
+  "octubre",
+  "nov",
+  "dic",
+];
+
+const getTicketDate = (ticket) => {
+  const rawDate =
+    ticket?.fechaCreacion ??
+    ticket?.fecha_creacion ??
+    ticket?.fecha ??
+    ticket?.createdAt ??
+    ticket?.created_at ??
+    ticket?.fechaAlta;
+
+  if (!rawDate) return null;
+  const date = new Date(rawDate);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getSixMonthBuckets = () => {
+  const now = new Date();
+  return Array.from({ length: 6 }, (_, idx) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (5 - idx), 1);
+    return {
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      label: monthLabels[d.getMonth()],
+      year: d.getFullYear(),
+      month: d.getMonth(),
+    };
+  });
+};
+
+const getWeekOfMonth = (date) => {
+  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+  return Math.ceil((date.getDate() + firstDay.getDay()) / 7);
+};
+
 const Admin = () => {
   const [usuario, setUsuario] = useState(null);
   const [tickets, setTickets] = useState([]);
+  const [engineerViewMode, setEngineerViewMode] = useState("semanal");
+  const [engineerMonthKey, setEngineerMonthKey] = useState(() => {
+    const buckets = getSixMonthBuckets();
+    return buckets[buckets.length - 1]?.key ?? "";
+  });
+  const [summaryViewMode, setSummaryViewMode] = useState("semanal");
+  const [summaryMonthKey, setSummaryMonthKey] = useState(() => {
+    const buckets = getSixMonthBuckets();
+    return buckets[buckets.length - 1]?.key ?? "";
+  });
+  const [trendMode, setTrendMode] = useState("semanal");
+  const [selectedMonthKey, setSelectedMonthKey] = useState(() => {
+    const buckets = getSixMonthBuckets();
+    return buckets[buckets.length - 1]?.key ?? "";
+  });
   const navigate = useNavigate();
   const chartRef = useRef(null);
   const pieChartRef = useRef(null);
+  const trendChartRef = useRef(null);
   const chartInstanceRef = useRef(null);
   const pieChartInstanceRef = useRef(null);
+  const trendChartInstanceRef = useRef(null);
 
 
 
@@ -101,7 +165,55 @@ const Admin = () => {
     const pieChart = pieDom ? (pieExisting ?? echarts.init(pieDom)) : null;
     pieChartInstanceRef.current = pieChart;
 
-    const ingenieroCounts = tickets.reduce((acc, ticket) => {
+    const sixMonths = getSixMonthBuckets();
+    const selectedEngineerMonth =
+      sixMonths.find((bucket) => bucket.key === engineerMonthKey) ??
+      sixMonths[sixMonths.length - 1];
+
+    const now = new Date();
+    const weekStart = new Date(now);
+    const day = weekStart.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    weekStart.setDate(weekStart.getDate() + diffToMonday);
+    weekStart.setHours(0, 0, 0, 0);
+
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    const filteredEngineerTickets = tickets.filter((ticket) => {
+      const d = getTicketDate(ticket);
+      if (!d) return false;
+
+      if (engineerViewMode === "mensual") {
+        return (
+          d.getFullYear() === selectedEngineerMonth.year &&
+          d.getMonth() === selectedEngineerMonth.month
+        );
+      }
+
+      return d >= weekStart && d <= weekEnd;
+    });
+
+    const selectedSummaryMonth =
+      sixMonths.find((bucket) => bucket.key === summaryMonthKey) ??
+      sixMonths[sixMonths.length - 1];
+
+    const filteredSummaryTickets = tickets.filter((ticket) => {
+      const d = getTicketDate(ticket);
+      if (!d) return false;
+
+      if (summaryViewMode === "mensual") {
+        return (
+          d.getFullYear() === selectedSummaryMonth.year &&
+          d.getMonth() === selectedSummaryMonth.month
+        );
+      }
+
+      return d >= weekStart && d <= weekEnd;
+    });
+
+    const ingenieroCounts = filteredEngineerTickets.reduce((acc, ticket) => {
       const nombreIngeniero = (ticket?.ingeniero || "Sin asignar").toString().trim() || "Sin asignar";
       acc[nombreIngeniero] = (acc[nombreIngeniero] || 0) + 1;
       return acc;
@@ -191,11 +303,11 @@ const Admin = () => {
       animationEasingUpdate: "linear",
     };
 
-    const enProgreso = tickets.filter((t) => t.estatus === "En Progreso").length;
-    const cerrados = tickets.filter(
+    const enProgreso = filteredSummaryTickets.filter((t) => t.estatus === "En Progreso").length;
+    const cerrados = filteredSummaryTickets.filter(
       (t) => t.estatus === "Cerrado" || t.estatus === "Cerrados"
     ).length;
-    const pendientes = tickets.filter((t) => t.estatus === "Abierto").length;
+    const pendientes = filteredSummaryTickets.filter((t) => t.estatus === "Abierto").length;
 
     const pieOption = {
       tooltip: {
@@ -249,7 +361,120 @@ const Admin = () => {
       chartInstanceRef.current = null;
       pieChartInstanceRef.current = null;
     };
-  }, [tickets]);
+  }, [tickets, engineerViewMode, engineerMonthKey, summaryViewMode, summaryMonthKey]);
+
+  useEffect(() => {
+    if (!trendChartRef.current) return;
+
+    const dom = trendChartRef.current;
+    const existing = echarts.getInstanceByDom(dom);
+    const chart = existing ?? echarts.init(dom);
+    trendChartInstanceRef.current = chart;
+
+    const sixMonths = getSixMonthBuckets();
+    const ticketDates = tickets.map(getTicketDate).filter(Boolean);
+
+    let categories = [];
+    let values = [];
+
+    if (trendMode === "semanal") {
+      const selectedBucket =
+        sixMonths.find((bucket) => bucket.key === selectedMonthKey) ??
+        sixMonths[sixMonths.length - 1];
+
+      const weekCounts = [0, 0, 0, 0,0,0,0];
+      ticketDates.forEach((date) => {
+        if (
+          date.getFullYear() === selectedBucket.year &&
+          date.getMonth() === selectedBucket.month
+        ) {
+          const weekIdx = Math.min(Math.max(getWeekOfMonth(date), 1), 6) - 1;
+          weekCounts[weekIdx] += 1;
+        }
+      });
+
+      categories = ["Sem 1", "Sem 2", "Sem 3", "Sem 4"];
+      values = weekCounts;
+    } else {
+      categories = sixMonths.map((bucket) => bucket.label);
+      values = sixMonths.map((bucket) => {
+        return ticketDates.filter(
+          (date) =>
+            date.getFullYear() === bucket.year && date.getMonth() === bucket.month
+        ).length;
+      });
+    }
+
+    const trendOption = {
+      tooltip: {
+        trigger: "axis",
+      },
+      grid: {
+        top: 16,
+        right: 16,
+        bottom: 24,
+        left: 36,
+        containLabel: true,
+      },
+      xAxis: {
+        type: "category",
+        data: categories,
+        axisLabel: {
+          color: "#fff",
+          interval: 0,
+          hideOverlap: false,
+          formatter: (value) => String(value).toUpperCase(),
+        },
+        axisLine: {
+          lineStyle: {
+            color: "rgba(255,255,255,0.35)",
+          },
+        },
+      },
+      yAxis: {
+        type: "value",
+        minInterval: 1,
+        axisLabel: {
+          color: "#fff",
+          formatter: (value) => `${Math.trunc(value)}`,
+        },
+        splitLine: {
+          lineStyle: {
+            color: "rgba(255,255,255,0.12)",
+          },
+        },
+      },
+      series: [
+        {
+          data: values,
+          type: "line",
+          smooth: true,
+          symbol: "circle",
+          symbolSize: 8,
+          lineStyle: {
+            width: 3,
+            color: "#fff",
+          },
+          itemStyle: {
+            color: "#fff",
+          },
+          areaStyle: {
+            color: "rgba(255,255,255,0.2)",
+          },
+        },
+      ],
+    };
+
+    chart.setOption(trendOption, true);
+
+    const onResize = () => chart.resize();
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      chart.dispose();
+      trendChartInstanceRef.current = null;
+    };
+  }, [tickets, trendMode, selectedMonthKey]);
 
   if (!usuario) {
     return (
@@ -280,16 +505,119 @@ const Admin = () => {
         <div style={{ display: "grid", gridTemplateColumns: "12fr 10fr repeat(4, 1fr)", gridTemplateRows: "270px 270px", gridColumnGap: "15px", gridRowGap: "15px" }}>
           {/* Panel de equipo */}
           <div className="uno" style={{gridArea: "1 / 1 / 2 / 2", ...glassStyle, color: "#fff", display: "flex", flexDirection: "column" }}>
-            <h3 style={{ marginTop: 0, marginBottom: 4, fontSize: 19 }}>Equipo de trabajo</h3>
-            <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 8 }}>Tickets por ingeniero</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+              <h3 style={{ margin: 0, fontSize: 19 }}>Equipo de trabajo</h3>
+              <div style={{ display: "flex", gap: 8 }}>
+                <select
+                  value={engineerViewMode}
+                  onChange={(e) => setEngineerViewMode(e.target.value)}
+                  style={{
+                    background: "rgba(255,255,255,0.12)",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    color: "#fff",
+                    borderRadius: 8,
+                    padding: "6px 10px",
+                    fontSize: 12,
+                  }}
+                >
+                  <option value="semanal" style={{ color: "#000" }}>Semana</option>
+                  <option value="mensual" style={{ color: "#000" }}>Mes</option>
+                </select>
+                {engineerViewMode === "mensual" ? (
+                  <select
+                    value={engineerMonthKey}
+                    onChange={(e) => setEngineerMonthKey(e.target.value)}
+                    style={{
+                      background: "rgba(255,255,255,0.12)",
+                      border: "1px solid rgba(255,255,255,0.2)",
+                      color: "#fff",
+                      borderRadius: 8,
+                      padding: "6px 10px",
+                      fontSize: 12,
+                    }}
+                  >
+                    {getSixMonthBuckets().map((bucket) => (
+                      <option key={bucket.key} value={bucket.key} style={{ color: "#000" }}>
+                        {String(bucket.label).toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+              </div>
+            </div>
+            <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 8, marginTop: 6 }}>
+              {engineerViewMode === "semanal" ? "Tickets por ingeniero" : "Tickets por ingeniero"}
+            </div>
             <div ref={chartRef} style={{ width: "100%", flex: 1, minHeight: 0 }}/>
           </div>
-          <div className="dos" style={{ gridArea: "2 / 1 / 3 / 2", ...glassStyle, color: "#fff"}}>
-
+          <div className="dos" style={{ gridArea: "2 / 1 / 3 / 2", ...glassStyle, color: "#fff", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+              <h3 style={{ margin: 0, fontSize: 18 }}>Tendencia de tickets</h3>
+              <div style={{ display: "flex", gap: 8 }}>
+                <select value={trendMode} onChange={(e) => setTrendMode(e.target.value)} style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", borderRadius: 8, padding: "6px 10px", fontSize: 12, }}>
+                  <option value="semanal" style={{ color: "#000" }}>Filtro por semana</option>
+                  <option value="mensual" style={{ color: "#000" }}>Ultimos 6 meses</option>
+                </select>
+                {trendMode === "semanal" ? (
+                  <select value={selectedMonthKey} onChange={(e) => setSelectedMonthKey(e.target.value)} style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", borderRadius: 8, padding: "6px 10px", fontSize: 12, }}>
+                    {getSixMonthBuckets().map((bucket) => (
+                      <option key={bucket.key} value={bucket.key} style={{ color: "#000" }}>
+                        {bucket.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+              </div>
+            </div>
+            <div style={{ fontSize: 13, opacity: 0.85, marginTop: 8, marginBottom: 8 }}>
+              {trendMode === "mensual" ? "Cantidad de tickets por mes" : "Cantidad de tickets por semana"}
+            </div>
+            <div ref={trendChartRef} style={{ width: "100%", flex: 1, minHeight: 0 }} />
           </div>
           <div className="tres" style={{ gridArea: "1 / 2 / 3 / 3", ...glassStyle, color: "#fff", display: "flex", flexDirection: "column" }}>
-            <h3 style={{ marginTop: 0, marginBottom: 4, fontSize: 19 }}>Resumen de tickets levantados</h3>
-            <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 8 }}>Distribucion por estatus</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+              <h3 style={{ margin: 0, fontSize: 19 }}>Resumen de tickets levantados</h3>
+              <div style={{ display: "flex", gap: 8 }}>
+                <select
+                  value={summaryViewMode}
+                  onChange={(e) => setSummaryViewMode(e.target.value)}
+                  style={{
+                    background: "rgba(255,255,255,0.12)",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    color: "#fff",
+                    borderRadius: 8,
+                    padding: "6px 10px",
+                    fontSize: 12,
+                  }}
+                >
+                  <option value="semanal" style={{ color: "#000" }}>Semana</option>
+                  <option value="mensual" style={{ color: "#000" }}>Mes</option>
+                </select>
+                {summaryViewMode === "mensual" ? (
+                  <select
+                    value={summaryMonthKey}
+                    onChange={(e) => setSummaryMonthKey(e.target.value)}
+                    style={{
+                      background: "rgba(255,255,255,0.12)",
+                      border: "1px solid rgba(255,255,255,0.2)",
+                      color: "#fff",
+                      borderRadius: 8,
+                      padding: "6px 10px",
+                      fontSize: 12,
+                    }}
+                  >
+                    {getSixMonthBuckets().map((bucket) => (
+                      <option key={bucket.key} value={bucket.key} style={{ color: "#000" }}>
+                        {String(bucket.label).toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+              </div>
+            </div>
+            <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 8, marginTop: 6 }}>
+              {summaryViewMode === "semanal" ? "Distribucion por estatus" : "Distribucion por estatus"}
+            </div>
             <div ref={pieChartRef} style={{ width: "100%", flex: 1, minHeight: 0 }} />
           </div>
           <div className="cuatro" style={{ gridArea: "1 / 3 / 2 / 4", ...glassStyle, color: "#fff" }}>
