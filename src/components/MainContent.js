@@ -5,6 +5,13 @@ import { createTicketCreate, getTicketById } from '../services/ticketService';
 import { useNotifications } from '../contexts/NotificationContext';
 import '../components/Styles/mainContent.css';
 
+const toLocalISOString = (date = new Date()) => {
+    // Convierte a una fecha ISO basada en la hora local (sin sufijo 'Z').
+    const tzOffsetMs = date.getTimezoneOffset() * 60 * 1000;
+    const localDate = new Date(date.getTime() - tzOffsetMs);
+    return localDate.toISOString().slice(0, 19);
+};
+
 const MainContent = () => {
     // 1. Estados para la lógica de la UI y el chat
     const [messages, setMessages] = useState([]);
@@ -115,7 +122,7 @@ const MainContent = () => {
             estatus: "Abierto",
             tipo_ticket: ticketSeleccionado.tipo,
             descripcion: finalDescription,
-            fechaCreacion: new Date().toISOString(),
+            fechaCreacion: toLocalISOString(),
         };
 
         try {

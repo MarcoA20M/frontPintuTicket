@@ -127,9 +127,11 @@ const Admin = () => {
   const chartRef = useRef(null);
   const pieChartRef = useRef(null);
   const trendChartRef = useRef(null);
+  const gaugeChartRef = useRef(null);
   const chartInstanceRef = useRef(null);
   const pieChartInstanceRef = useRef(null);
   const trendChartInstanceRef = useRef(null);
+  const gaugeChartInstanceRef = useRef(null);
 
 
 
@@ -153,7 +155,7 @@ const Admin = () => {
   }, []);
 
   useEffect(() => {
-    if (!chartRef.current && !pieChartRef.current) return;
+    if (!chartRef.current && !pieChartRef.current && !gaugeChartRef.current) return;
 
     const barDom = chartRef.current;
     const barExisting = barDom ? echarts.getInstanceByDom(barDom) : null;
@@ -164,6 +166,11 @@ const Admin = () => {
     const pieExisting = pieDom ? echarts.getInstanceByDom(pieDom) : null;
     const pieChart = pieDom ? (pieExisting ?? echarts.init(pieDom)) : null;
     pieChartInstanceRef.current = pieChart;
+
+    const gaugeDom = gaugeChartRef.current;
+    const gaugeExisting = gaugeDom ? echarts.getInstanceByDom(gaugeDom) : null;
+    const gaugeChart = gaugeDom ? (gaugeExisting ?? echarts.init(gaugeDom)) : null;
+    gaugeChartInstanceRef.current = gaugeChart;
 
     const sixMonths = getSixMonthBuckets();
     const selectedEngineerMonth =
@@ -349,17 +356,111 @@ const Admin = () => {
     barChart?.setOption(barOption, true);
     pieChart?.setOption(pieOption, true);
 
+    // --- Gauge: promedio de calificaciones (tickets cerrados) ---
+    const closedStatuses = new Set(['cerrado', 'cerrados']);
+    const closedTickets = filteredSummaryTickets.filter((t) => closedStatuses.has(String(t?.estatus ?? '').toLowerCase().trim()));
+    const ratedValues = closedTickets
+      .map((t) => {
+        const raw = t?.calificacion ?? t?.rating ?? t?.score ?? t?.puntuacion ?? t?.calificacionTicket;
+        const n = Number(raw);
+        return Number.isFinite(n) ? n : null;
+      })
+      .filter((n) => n != null && n > 0);
+
+    const ratedCount = ratedValues.length;
+    const avgRating = ratedCount ? ratedValues.reduce((a, b) => a + b, 0) / ratedCount : 0;
+
+    const gaugeOption = {
+      series: [
+        {
+          type: 'gauge',
+          startAngle: 180,
+          endAngle: 0,
+          center: ['50%', '90%'],
+          radius: '115%',
+          min: 0,
+          max: 5,
+          splitNumber: 5,
+          axisLine: {
+            lineStyle: {
+              width: 10,
+              color: [
+                [0.2, '#ff4d4f'], // rojo
+                [0.4, '#fa8c16'], // naranja
+                [0.6, '#facc15'], // amarillo
+                [0.8, '#52c41a'], // verde
+                [1, '#1890ff'], // azul
+              ],
+            },
+          },
+          pointer: {
+            icon: 'path://M12.8,0.7l12,40.1H0.7L12.8,0.7z',
+            length: '12%',
+            width: 18,
+            offsetCenter: [0, '-55%'],
+            itemStyle: { color: 'auto' },
+          },
+          axisTick: {
+            length: 10,
+            lineStyle: { color: 'auto', width: 2 },
+          },
+          splitLine: {
+            length: 16,
+            lineStyle: { color: 'auto', width: 4 },
+          },
+          axisLabel: {
+            color: '#fff',
+            fontSize: 12,
+            distance: -38,
+            formatter: (value) => {
+              // Mostrar 1..5 (ocultar 0 para que no estorbe)
+              const v = Math.round(value);
+              if (v === 0) return '';
+              if (v < 0 || v > 5) return '';
+              return String(v);
+            },
+          },
+          title: {
+            offsetCenter: [0, '30%'],
+            fontSize: 14,
+            color: '#fff',
+          },
+          detail: {
+            fontSize: 26,
+            offsetCenter: [0, '-6%'],
+            valueAnimation: true,
+            formatter: (value) => {
+              if (!ratedCount) return '--';
+              return `${Number(value).toFixed(1)}/5`;
+            },
+            color: 'inherit',
+          },
+          data: [
+            {
+              value: Math.max(0, Math.min(5, avgRating)),
+              name: ratedCount ? 'Promedio (cerrados)' : 'Sin calificación',
+            },
+          ],
+        },
+      ],
+    };
+
+    gaugeChart?.setOption(gaugeOption, true);
+
     const onResize = () => {
       barChart?.resize();
       pieChart?.resize();
+      gaugeChart?.resize();
     };
     window.addEventListener("resize", onResize);
     return () => {
       window.removeEventListener("resize", onResize);
       barChart?.dispose();
       pieChart?.dispose();
+      gaugeChart?.dispose();
       chartInstanceRef.current = null;
       pieChartInstanceRef.current = null;
+      gaugeChartInstanceRef.current = null;
     };
   }, [tickets, engineerViewMode, engineerMonthKey, summaryViewMode, summaryMonthKey]);
 
@@ -502,7 +603,7 @@ const Admin = () => {
         </div>
 
         {/* Dos paneles: Equipo y Resumen */}
-        <div style={{ display: "grid", gridTemplateColumns: "12fr 10fr repeat(4, 1fr)", gridTemplateRows: "270px 270px", gridColumnGap: "15px", gridRowGap: "15px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "95fr 75fr 65fr repeat(4, 1fr)", gridTemplateRows: "270px 370px", gridColumnGap: "15px", gridRowGap: "15px" }}>
           {/* Panel de equipo */}
           <div className="uno" style={{gridArea: "1 / 1 / 2 / 2", ...glassStyle, color: "#fff", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
@@ -620,8 +721,14 @@ const Admin = () => {
             </div>
             <div ref={pieChartRef} style={{ width: "100%", flex: 1, minHeight: 0 }} />
           </div>
-          <div className="cuatro" style={{ gridArea: "1 / 3 / 2 / 4", ...glassStyle, color: "#fff" }}>
-            
+          <div className="cuatro" style={{ gridArea: "1 / 3 / 2 / 4", ...glassStyle, color: "#fff", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <h3 style={{ margin: 0, fontSize: 18 }}>Calificación promedio</h3>
+            </div>
+            <div style={{ fontSize: 13, opacity: 0.85, marginTop: 8, marginBottom: 8 }}>
+              Promedio de tickets cerrados calificados
+            </div>
+            <div ref={gaugeChartRef} style={{ width: '100%', flex: 1, minHeight: 0 }} />
           </div>
           <div className="cinco" style={{ gridArea: "2 / 3 / 3 / 4", ...glassStyle, color: "#fff" }}>
             

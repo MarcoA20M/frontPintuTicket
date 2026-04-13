@@ -15,9 +15,27 @@ const TicketDetailChat = () => {
 
   // Estados para calificación (deben estar al tope y no condicionales)
   const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
   const [ratingComment, setRatingComment] = useState('');
   const [ratingLoading, setRatingLoading] = useState(false);
   const [ratingSuccess, setRatingSuccess] = useState('');
+
+  const handleRatingKeyDown = (e) => {
+    const key = e.key;
+    if (key !== 'ArrowLeft' && key !== 'ArrowRight' && key !== 'Home' && key !== 'End') return;
+    e.preventDefault();
+
+    setRating((prev) => {
+      const current = typeof prev === 'number' ? prev : 0;
+      if (key === 'Home') return 1;
+      if (key === 'End') return 5;
+      if (key === 'ArrowLeft') return Math.max(1, current - 1 || 1);
+      // ArrowRight
+      return Math.min(5, Math.max(1, current + 1));
+    });
+  };
+
+  const displayRating = hoverRating > 0 ? hoverRating : rating;
 
   // carga inicial del ticket y del historial al montar o cuando cambie el folio
   useEffect(() => {
@@ -227,16 +245,31 @@ const TicketDetailChat = () => {
             <div>Gracias por sus comentarios<strong></strong> {ticket.calificacionComentario ? <> - {ticket.calificacionComentario}</> : null}</div>
           ) : (
             <>
-                <div className="rating-row">
+              <div className="rating-row">
                 <label className="rating-label">Puntuación: </label>
-                <select className="rating-select" value={rating} onChange={e => setRating(Number(e.target.value))}>
-                  <option style={{color: "black"}} value={0}>Selecciona...</option>
-                  <option style={{color: "black"}} value={1}>Muy mal</option>
-                  <option style={{color: "black"}} value={2}>Mal</option>
-                  <option style={{color: "black"}} value={3}>Regular</option>
-                  <option style={{color: "black"}} value={4}>Bien</option>
-                  <option style={{color: "black"}} value={5}>Excelente</option>
-                </select>
+                <div
+                  className="rating-stars"
+                  role="radiogroup"
+                  aria-label="Puntuación"
+                  onKeyDown={handleRatingKeyDown}
+                  onMouseLeave={() => setHoverRating(0)}
+                >
+                  {[1, 2, 3, 4, 5].map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={`rating-star ${displayRating >= value ? 'is-filled' : 'is-empty'}`}
+                      onClick={() => setRating(value)}
+                      onMouseEnter={() => setHoverRating(value)}
+                      role="radio"
+                      aria-checked={rating === value}
+                      aria-label={`${value} de 5`}
+                      tabIndex={rating === 0 ? (value === 1 ? 0 : -1) : (rating === value ? 0 : -1)}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="rating-comment">
                 <label>Comentario (opcional)</label>

@@ -81,6 +81,39 @@
     min-width: 90px;
 }
 
+.rating-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+}
+
+.rating-star {
+    border: 0;
+    background: transparent;
+    padding: 2px 0;
+    cursor: pointer;
+    color: var(--glass-fg);
+    font-size: 22px;
+    line-height: 1;
+}
+
+.rating-star.is-empty {
+    opacity: 0.35;
+}
+
+.rating-star.is-filled {
+    opacity: 1;
+    /* Reusar el amarillo ya usado en el proyecto (TicketTable.css) */
+    color: #facc15;
+}
+
+.rating-star:focus-visible {
+    outline: 2px solid var(--glass-border);
+    outline-offset: 3px;
+    border-radius: 6px;
+}
+
 .rating-textarea {
     width: 100%;
     margin-top: 6px;
