@@ -2,9 +2,12 @@
     --glass-bg: rgba(255, 255, 255, 0.06);
     --glass-border: rgba(255, 255, 255, 0.12);
     --glass-fg: rgba(255, 255, 255, 0.9);
-    --negro : rgba(0, 0, 0, 0.8);
+    --negro: rgba(0, 0, 0, 0.8);
 }
 
+/* =========================
+   LAYOUT GENERAL
+========================= */
 .ticket-detail-chat-container {
     padding: 16px;
 }
@@ -26,13 +29,6 @@
     border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
-/* .message-bubble.system { background: rgba(50,115,255,0.06); }
-.message-bubble.user { background: rgba(255,246,195,0.04); } */
-
-.message-text-line {
-    white-space: pre-wrap;
-}
-
 .timestamp {
     display: block;
     font-size: 12px;
@@ -40,101 +36,229 @@
     margin-top: 6px;
 }
 
-.no-historial {
-    color: rgba(255, 255, 255, 0.7);
+/* =========================
+   STATUS INDICATOR
+========================= */
+.status-indicator {
+    margin: 10px 0 15px;
+    font-size: 14px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(8px);
 }
 
-
-.select-label {
-    margin-top: 25px;
-    padding: 10px;
-    border-radius: 12px;
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18);
-    backdrop-filter: blur(8px) saturate(120%);
-    -webkit-backdrop-filter: blur(8px) saturate(120%);
-    color: var(--glass-fg);
+/* 🔴 ABIERTO */
+.status-indicator.abierto {
+    color: #0ac000;
+    background: rgba(255, 70, 70, 0.08);
+    border-left: 4px solid #ff4d4d;
 }
 
-.ticket-rating {
-    /* Glass effect applied only to rating card */
-    margin-top: 18px;
-    padding: 12px;
-    border-radius: 12px;
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18);
-    backdrop-filter: blur(8px) saturate(120%);
-    -webkit-backdrop-filter: blur(8px) saturate(120%);
-    color: var(--glass-fg);
+/* 🟡 EN PROCESO */
+.status-indicator.en-proceso {
+    color: #ffcc66;
+    background: rgba(255, 180, 0, 0.08);
+    border-left: 4px solid #ffb020;
 }
 
+/* 🟢 CERRADO */
+.status-indicator.cerrado {
+    color: #ff0000;
+    background: rgba(46, 229, 157, 0.08);
+    border-left: 4px solid #2ee59d;
+}
+
+/* =========================
+   OVERLAY MODAL
+========================= */
+.ticket-rating-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+/* =========================
+   MODAL
+========================= */
+.ticket-rating-modal {
+    width: 420px;
+    max-width: 92%;
+    padding: 26px;
+    border-radius: 18px;
+    background: #ffffff;
+    color: #1a1a1a;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
+    animation: modalPop 0.25s ease forwards;
+    transform-origin: center;
+    font-family: system-ui, sans-serif;
+}
+
+@keyframes modalPop {
+    from {
+        transform: scale(0.85);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* =========================
+   TITULO
+========================= */
+.ticket-rating-header {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 6px;
+}
+
+.ticket-rating-modal p {
+    text-align: center;
+    font-size: 14px;
+    color: #000 !important;
+    margin-bottom: 18px;
+}
+.ticket-rating-modal b {
+    color: #000; /* o el color que quieras */
+}
+/* =========================
+   ⭐ ESTRELLAS (RESTAURADAS)
+========================= */
 .rating-row {
     display: flex;
-    gap: 12px;
+    flex-direction: column;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: 18px;
 }
 
 .rating-label {
-    min-width: 90px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #333;
 }
 
+.modal-stars {
+    position: relative;
+    font-size: 36px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    user-select: none;
+    display: inline-block;
+    color: #e0e0e0;
+}
+
+/* base */
+.modal-stars::before {
+    content: "★★★★★";
+}
+
+/* activo */
+.modal-stars::after {
+    content: "★★★★★";
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: #ffb347;
+    overflow: hidden;
+    width: var(--rating, 0%);
+    white-space: nowrap;
+}
+
+.rating-select {
+    display: none;
+}
+
+/* =========================
+   TEXTAREA
+========================= */
 .rating-textarea {
     width: 100%;
-    margin-top: 6px;
-    box-sizing: border-box;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid #ddd;
+    font-size: 14px;
+    resize: none;
+    color: #111;
+    background: #fff;
+    margin-top: 10px;
 }
 
+.rating-textarea:focus {
+    border-color: #ffb347;
+    box-shadow: 0 0 0 3px rgba(255, 179, 71, 0.2);
+    outline: none;
+}
+
+/* =========================
+   BOTONES
+========================= */
 .rating-actions {
     display: flex;
-    gap: 8px;
-    margin-top: 8px;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 16px;
 }
 
-.rating-loading,
+.btn {
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.2s ease;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #ffb347, #ffcc33);
+    color: #1a1a1a;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background: #f2f2f2;
+    color: #333;
+}
+
+.btn-secondary:hover {
+    background: #e6e6e6;
+}
+
+/* =========================
+   ÉXITO (GRACIAS)
+========================= */
 .rating-success {
-    margin-top: 8px;
-    color: var(--glass-fg);
+    text-align: center;
+    margin-top: 10px;
+    color: #1e9e5a;
+    font-weight: 600;
+    animation: fadeSuccess 0.4s ease;
 }
 
-/* Make inputs slightly translucent only inside the rating card */
-.ticket-rating select,
-.ticket-rating textarea,
-.ticket-rating input {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    color: var(--glass-fg);
-    padding: 6px 8px;
-    border-radius: 6px;
-}
-
-/* Aplicar efecto "glass" también a las opciones del select desplegable */
-.ticket-rating select option {
-    background: var(--glass-bg);
-    color: var(--glass-fg);
-    /* algunos navegadores soportan backdrop-filter en opciones; es experimental
-     pero intentamos mantener coherencia visual si el navegador lo permite */
-    backdrop-filter: blur(6px) saturate(120%);
-    -webkit-backdrop-filter: blur(6px) saturate(120%);
-}
-
-/* Quitar apariencia nativa para que el select se vea consistente */
-.ticket-rating select {
-    -webkit-appearance: none;
-    appearance: none;
-    background-image: linear-gradient(45deg, transparent 50%, var(--glass-fg) 50%),
-        linear-gradient(135deg, var(--glass-fg) 50%, transparent 50%);
-    background-position: calc(100% - 18px) calc(1em + 2px), calc(100% - 13px) calc(1em + 2px);
-    background-size: 6px 6px, 6px 6px;
-    background-repeat: no-repeat;
-    padding-right: 28px;
-    /* espacio para el caret personalizado */
-}
-
-@media (max-width: 640px) {
-    .ticket-detail-chat-container {
-        padding: 10px;
+@keyframes fadeSuccess {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
+
+

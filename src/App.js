@@ -19,10 +19,8 @@ import TrakingEng from './components/TrackingEngineer';
 import './components/App.css';
 import { NotificationProvider } from './contexts/NotificationContext';
 import Estadisticas from './components/Estadisticas';
+import DetalleTickets from "./components/DetalleTickets"
 
-/* =======================
-   Función para obtener el rol del usuario desde el token
-   ======================= */
 function getUserRoleFromToken(token) {
   if (!token) return null;
   try {
@@ -130,6 +128,7 @@ function App() {
           <Route path="/tabla" element={<Table />} />
           <Route path="/seguimiento" element={<Trac />} />
           <Route path="/seguimientoUsr" element={<TrackUsr />} />
+          <Route path="/estadisticas/:estado" element={<DetalleTickets />} />
         </Routes>
       </div>
     </div>

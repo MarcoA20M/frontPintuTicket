@@ -2,286 +2,338 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getTicketById } from "../services/ticketService";
 import { getHistorialByFolio } from "../services/historial";
-import { useNotifications } from '../contexts/NotificationContext';
-import './Styles/TicketDetailChatGlass.css';
-import { riteTicket } from '../services/ticketService';
+import { useNotifications } from "../contexts/NotificationContext";
+import "./Styles/TicketDetailChatGlass.css";
+import { riteTicket } from "../services/ticketService";
 
 const TicketDetailChat = () => {
   const { folio } = useParams();
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [historial, setHistorial] = useState([]);
-  const { subscribeNotifications, notifications, subscribeTicketTopic, addNotification } = useNotifications();
 
-  // Estados para calificación (deben estar al tope y no condicionales)
+  const { subscribeNotifications, subscribeTicketTopic } = useNotifications();
+
   const [rating, setRating] = useState(0);
-  const [ratingComment, setRatingComment] = useState('');
+  const [ratingComment, setRatingComment] = useState("");
   const [ratingLoading, setRatingLoading] = useState(false);
-  const [ratingSuccess, setRatingSuccess] = useState('');
+  const [ratingSuccess, setRatingSuccess] = useState("");
+  const [showModal, setShowModal] = useState(false);
 
-  // carga inicial del ticket y del historial al montar o cuando cambie el folio
+  // =========================
+  // 🔥 RESET DEL MODAL (FIX)
+  // =========================
+  useEffect(() => {
+    if (showModal) {
+      setRating(0);
+      setRatingComment("");
+      setRatingSuccess("");
+    }
+  }, [showModal]);
+
+  // =========================
+  // CARGA
+  // =========================
   useEffect(() => {
     let mounted = true;
+
     const fetchAll = async () => {
       setLoading(true);
+
       try {
         const [ticketResp, histResp] = await Promise.all([
-          getTicketById(folio).catch(e => { console.warn('getTicketById error', e); return null; }),
-          getHistorialByFolio(folio).catch(e => { console.warn('getHistorialByFolio error', e); return null; })
+          getTicketById(folio).catch(() => null),
+          getHistorialByFolio(folio).catch(() => null),
         ]);
 
         if (!mounted) return;
-        if (ticketResp) setTicket(ticketResp);
-        if (histResp) setHistorial(Array.isArray(histResp) ? histResp : (histResp ? [histResp] : []));
-      } catch (e) {
-        console.error('Error cargando ticket/historial', e);
+
+        if (ticketResp) {
+          setTicket(ticketResp);
+
+          if (
+            String(ticketResp.estatus || "").toLowerCase() === "cerrado" &&
+            !ticketResp.calificacion
+          ) {
+            setShowModal(true);
+          }
+        }
+
+        if (histResp) {
+          setHistorial(Array.isArray(histResp) ? histResp : [histResp]);
+        }
       } finally {
         if (mounted) setLoading(false);
       }
     };
 
     if (folio) fetchAll();
-    else setLoading(false);
 
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [folio]);
 
-
-
-  const usuarioGuardado = localStorage.getItem('usuario');
-  const usuarioObj = usuarioGuardado ? JSON.parse(usuarioGuardado) : null;
-  const usuarioId = usuarioObj?.id ?? usuarioObj?.userId ?? usuarioObj?.idUsuario ?? usuarioObj?.id_usuario ?? null;
-
+  // =========================
+  // NOTIFICACIONES
+  // =========================
   useEffect(() => {
-    if (!subscribeNotifications) return undefined;
+    if (!subscribeNotifications) return;
 
-    const unsub = subscribeNotifications((notif) => {
-      console.debug('[TicketDetailChat] received notif', notif);
-      if (!notif) return;
-      const notifFolio = String(notif.ticketId ?? notif.folio ?? '');
-      if (notifFolio && String(folio) === notifFolio) {
-        // opción A: re-fetch historial completo
-        getHistorialByFolio(folio).then(h => setHistorial(Array.isArray(h) ? h : (h ? [h] : []))).catch(e => console.warn(e));
-        // opción B: agregar la notificación directamente al historial (si payload tiene detalle)
-        // setHistorial(prev => [...prev, { detalle: notif.message, usuario: notif.usuario, fecha: new Date().toISOString() }]);
-        // y opcionalmente re-fetch del ticket para actualizar estatus/ingeniero
-        getTicketById(folio).then(t => setTicket(t)).catch(() => { });
-      }
+    const unsub = subscribeNotifications(() => {
+      getHistorialByFolio(folio).then(setHistorial);
+
+      getTicketById(folio).then((t) => {
+        setTicket(t);
+
+        if (t?.estatus?.toLowerCase() === "cerrado" && !t.calificacion) {
+          setShowModal(true);
+        }
+      });
     });
-    return () => {
-      try { if (typeof unsub === 'function') unsub(); }
-      catch (e) { }
-    };
+
+    return () => unsub?.();
   }, [folio, subscribeNotifications]);
 
-  // Suscripción STOMP específica al ticket: /topic/ticket.<folio>
   useEffect(() => {
-    let cleanup = null;
-    const run = async () => {
-      try {
-        if (!folio || !subscribeTicketTopic) return;
-        cleanup = await subscribeTicketTopic(folio);
-      } catch (e) {
-        console.warn('subscribeTicketTopic error', e);
-      }
-    };
-    run();
-    return () => {
-      try { if (typeof cleanup === 'function') cleanup(); } catch (e) {}
-    };
-  }, [folio, subscribeTicketTopic]);
+    let cleanup;
 
-  // Backup: si por alguna razón la suscripción no dispara, reaccionar a cambios en el array `notifications`
-  useEffect(() => {
-    if (!Array.isArray(notifications) || notifications.length === 0) return;
-    try {
-      const matched = notifications.find(n => String(n.ticketId ?? n.folio ?? '') === String(folio));
-      if (matched) {
-        console.debug('[TicketDetailChat] matched notification via notifications array', matched);
-        getHistorialByFolio(folio).then(h => setHistorial(Array.isArray(h) ? h : (h ? [h] : []))).catch(e => console.warn(e));
-        getTicketById(folio).then(t => setTicket(t)).catch(() => { });
+    const run = async () => {
+      if (subscribeTicketTopic) {
+        cleanup = await subscribeTicketTopic(folio);
       }
-    } catch (e) { console.warn('Error checking notifications array', e); }
-  }, [notifications, folio]);
+    };
+
+    run();
+
+    return () => cleanup?.();
+  }, [folio, subscribeTicketTopic]);
 
   if (loading) return <p>Cargando ticket...</p>;
   if (!ticket) return <p>Ticket no encontrado</p>;
 
+  // =========================
+  // MENSAJES
+  // =========================
+  const formatMessageText = (text) =>
+    String(text || "")
+      .split("**")
+      .map((part, i) =>
+        i % 2 ? <strong key={i}>{part}</strong> : part
+      );
+
   const messages = [
-    { sender: 'system', text: `¡Hola! Aquí está el ticket que creaste con el folio **${ticket.folio}**.` },
-    { sender: 'user', text: ticket.descripcion },
-    { sender: 'system', text: `El ticket ha sido asignado al ingeniero **${ticket.ingeniero}** y el estatus actual es **${ticket.estatus}**.` },
+    {
+      sender: "system",
+      text: `👋 Ticket **${ticket.folio}** cargado correctamente.`,
+    },
+    {
+      sender: "user",
+      text: `🧾 ${ticket.descripcion}`,
+    },
+    {
+      sender: "system",
+      text: `👨‍🔧 Asignado a: **${ticket.ingeniero}**
+📌 Estado: **${ticket.estatus}**`,
+    },
   ];
 
-  if (ticket.solucion && ticket.estatus === 'Cerrado') {
-    messages.push({ sender: 'system', text: `El problema ha sido resuelto. Solución: "${ticket.solucion}"` });
+  if (ticket.solucion && ticket.estatus === "Cerrado") {
+    messages.push({
+      sender: "system",
+      text: `🎉 Ticket resuelto\n\n🛠️ ${ticket.solucion}`,
+    });
   }
 
-
-
-  const formatMessageText = (text) => {
-    // defensivo: aceptar undefined/null y cualquier tipo
-    const s = text == null ? '' : String(text);
-    return s.split('**').map((part, index) => index % 2 === 1 ? <strong key={index}>{part}</strong> : part);
-  };
-
+  // =========================
+  // HISTORIAL (SIN CAMBIOS)
+  // =========================
   const formatHistorialText = (h) => {
-    if (h == null) return '';
-    if (typeof h === 'string') return h;
+    if (!h) return [];
 
-    // Prefer explicit text fields
-    if (h.detalle && typeof h.detalle === 'string') return h.detalle;
-    if (h.descripcion && typeof h.descripcion === 'string') return h.descripcion;
-    if (h.change && typeof h.change === 'string') return h.change;
-    if (h.text && typeof h.text === 'string') return h.text;
+    const items = [];
 
-    // If there's an array of changes, try to make a readable list
-    const changesArr = h.changes || h.cambios || h.diffs || h.modificaciones;
-    if (Array.isArray(changesArr) && changesArr.length) {
-      return changesArr.map(item => {
-        if (typeof item === 'string') return `- ${item}`;
-        if (item.field || item.campo) return `${item.field ?? item.campo}: ${item.old ?? ''} → ${item.new ?? ''}`;
-        // generic object
-        try { return `- ${JSON.stringify(item)}`; } catch (e) { return `- ${String(item)}`; }
-      }).join('\n');
+    if (h.comentarios) items.push({ icon: "💬", text: h.comentarios });
+    if (h.detalle) items.push({ icon: "📌", text: h.detalle });
+    if (h.descripcion) items.push({ icon: "📝", text: h.descripcion });
+    if (h.change) items.push({ icon: "🔄", text: h.change });
+
+    const cambios = h.cambios || h.changes;
+
+    if (Array.isArray(cambios)) {
+      cambios.forEach((c) => {
+        const campo = c.field || c.campo;
+        if (!campo) return;
+
+        items.push({
+          icon: "🔧",
+          text: `${campo}: ${c.old ?? "Sin asignar"} → ${c.new ?? "Sin asignar"}`,
+        });
+      });
     }
 
-    // If there are before/after objects, print differences
-    if (h.before && h.after && typeof h.before === 'object' && typeof h.after === 'object') {
-      const diffs = [];
-      const keys = Array.from(new Set([...Object.keys(h.before), ...Object.keys(h.after)]));
-      for (const k of keys) {
-        const a = h.before[k];
-        const b = h.after[k];
-        if (JSON.stringify(a) !== JSON.stringify(b)) {
-          diffs.push(`${k}: ${String(a ?? '')} → ${String(b ?? '')}`);
-        }
-      }
-      if (diffs.length) return diffs.join('\n');
-    }
-
-    // Fallback: build a simple key: value summary (avoid full JSON blob)
-    try {
-      return Object.entries(h).map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`).join(' · ');
-    } catch (e) {
-      return String(h);
-    }
+    return items.length
+      ? items
+      : [{ icon: "ℹ️", text: JSON.stringify(h) }];
   };
+
+  const statusClass = ticket.estatus
+    ?.toLowerCase()
+    .replace(" ", "-");
 
   return (
     <div className="ticket-detail-chat-container">
-      <h2 className="ticket-chat-title">Historial del ticket con Folio: {ticket.folio}</h2>
+
+      <h2 className="ticket-chat-title">
+        Historial de Ticket: {ticket.folio}
+      </h2>
+
+      <div className={`status-indicator ${statusClass}`}>
+        ● {ticket.estatus}
+      </div>
+
       <div className="chat-history">
-        {messages.map((msg, index) => (
-          <div key={`msg-${index}`} className={`message-bubble ${msg.sender}`}>
-            <p className="message-text">{formatMessageText(msg.text)}</p>
-            <span className="timestamp">{new Date(ticket.fechaCreacion).toLocaleDateString()}</span>
+
+        {messages.map((msg, i) => (
+          <div key={i} className={`message-bubble ${msg.sender}`}>
+            <div className="message-text">
+              {formatMessageText(msg.text)}
+            </div>
+
+            <span className="timestamp">
+              {new Date(ticket.fechaCreacion).toLocaleString()}
+            </span>
           </div>
         ))}
 
-        {/* Renderizar historial como burbujas de mensaje */}
-        {historial && historial.length > 0 ? (
-          historial.map((h, i) => {
-            const senderClass = h.usuario || h.user || h.autor ? 'user' : 'system';
-            const rawText = formatHistorialText(h);
-            const text = typeof rawText === 'string' ? rawText : String(rawText);
-            const time = h.fecha ? new Date(h.fecha) : (h.timestamp ? new Date(h.timestamp) : null);
+        {historial.map((h, i) => {
+          const items = formatHistorialText(h);
 
-            // historial
-            const isStructuredObject = typeof h === 'object' && h !== null && !h.detalle && !h.descripcion && !h.change && !h.text && !Array.isArray(h.changes) && !h.before && !h.after;
-
-            return (
-              <div key={`hist-${i}`} className={`message-bubble history ${senderClass}`}>
-                {isStructuredObject ? (
-                  //componente que muestra el los historiales
-                  <div style={{ whiteSpace: 'pre-wrap', marginTop: 8 }}>
-                    {Object.entries(h).map(([k, v]) => (
-                      <div key={k} style={{ marginBottom: 6 }}>
-                        <strong>{k}</strong>: <span>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
-                      </div>
-                    ))}
+          return (
+            <div
+              key={i}
+              className={`message-bubble history ${
+                h.usuario ? "user" : "system"
+              }`}
+            >
+              <div className="history-card">
+                {items.map((it, idx) => (
+                  <div key={idx} className="history-item">
+                    <span className="history-icon">{it.icon}</span>
+                    <span className="history-text">{it.text}</span>
                   </div>
-                ) : (
-                  <>
-                    {/* Mostrar texto multilínea preservando saltos y formato de bold (** **) */}
-                    {String(text).split('\n').map((line, idx) => (
-                      <div key={idx} className="message-text-line">{formatMessageText(line)}</div>
-                    ))}
-                    <div className="timestamp" style={{ marginTop: 6 }}>{time ? time.toLocaleString() : ''}</div>
-                  </>
-                )}
+                ))}
               </div>
-            );
-          })
-        ) : (
-          <div className="no-historial" style={{ marginTop: 12 }}>No hay historial para este folio.</div>
-        )}
-      </div >
-      {/* Sección de calificación: sólo si está cerrado */}
-      {String(ticket.estatus || '').toLowerCase() === 'cerrado' && (
-        <div className="ticket-rating">
-          <div className="ticket-rating-header">
-            Califica la atención del ticket
+
+              {h.fecha && (
+                <span className="timestamp">
+                  {new Date(h.fecha).toLocaleString()}
+                </span>
+              )}
+            </div>
+          );
+        })}
+
+      </div>
+
+      {/* ⭐ MODAL */}
+      {showModal && (
+        <div className="ticket-rating-overlay">
+          <div className="ticket-rating-modal">
+
+            <h3 className="ticket-rating-header">
+              Califica la atención
+            </h3>
+
+            <p>
+              Tu ticket <b>{ticket.folio}</b> ha finalizado.
+            </p>
+
+            <div className="rating-row">
+              <label className="rating-label">Puntuación</label>
+
+              <div
+                className="modal-stars"
+                style={{ "--rating": `${(rating / 5) * 100}%` }}
+                onClick={(e) => {
+                  const x =
+                    e.clientX -
+                    e.currentTarget.getBoundingClientRect().left;
+
+                  setRating(Math.ceil((x / e.currentTarget.offsetWidth) * 5));
+                }}
+              />
+
+              <select
+                className="rating-select"
+                value={rating}
+                onChange={(e) => setRating(Number(e.target.value))}
+              >
+                <option value={0}>Selecciona</option>
+                <option value={1}>1 - Malo</option>
+                <option value={2}>2 - Regular</option>
+                <option value={3}>3 - Bueno</option>
+                <option value={4}>4 - Muy bueno</option>
+                <option value={5}>5 - Excelente</option>
+              </select>
+            </div>
+
+            <textarea
+              className="rating-textarea"
+              placeholder="Escribe tu comentario..."
+              value={ratingComment}
+              onChange={(e) => setRatingComment(e.target.value)}
+            />
+
+            <div className="rating-actions">
+
+              <button
+                className="btn btn-primary"
+                disabled={ratingLoading || rating === 0}
+                onClick={async () => {
+                  setRatingLoading(true);
+
+                  await riteTicket({
+                    folio: ticket.folio,
+                    calificacion: rating,
+                    comentario_usr: ratingComment,
+                  });
+
+                  setRatingLoading(false);
+                  setRatingSuccess("¡Gracias por tu opinión!");
+
+                  setTimeout(() => {
+                    const modal = document.querySelector(".ticket-rating-modal");
+                    if (modal) modal.classList.add("closing");
+
+                    setTimeout(() => {
+                      setShowModal(false);
+                    }, 300);
+                  }, 1000);
+                }}
+              >
+                {ratingLoading ? "Enviando..." : "Enviar"}
+              </button>
+
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowModal(false)}
+              >
+                Cerrar
+              </button>
+
+            </div>
+
+            {ratingSuccess && (
+              <div className="rating-success">
+                {ratingSuccess}
+              </div>
+            )}
+
           </div>
-          {ticket.calificacion ? (
-            <div>Gracias por sus comentarios<strong></strong> {ticket.calificacionComentario ? <> - {ticket.calificacionComentario}</> : null}</div>
-          ) : (
-            <>
-                <div className="rating-row">
-                <label className="rating-label">Puntuación: </label>
-                <select className="rating-select" value={rating} onChange={e => setRating(Number(e.target.value))}>
-                  <option style={{color: "black"}} value={0}>Selecciona...</option>
-                  <option style={{color: "black"}} value={1}>Muy mal</option>
-                  <option style={{color: "black"}} value={2}>Mal</option>
-                  <option style={{color: "black"}} value={3}>Regular</option>
-                  <option style={{color: "black"}} value={4}>Bien</option>
-                  <option style={{color: "black"}} value={5}>Excelente</option>
-                </select>
-              </div>
-              <div className="rating-comment">
-                <label>Comentario (opcional)</label>
-                <textarea value={ratingComment} onChange={e => setRatingComment(e.target.value)} rows={3} className="rating-textarea" />
-              </div>
-              <div className="rating-actions">
-                <button
-                  className="btn btn-primary"
-                  disabled={ratingLoading || rating <= 0}
-                  onClick={async () => {
-                    try {
-                      setRatingLoading(true);
-                      // Llamar al servicio de calificación
-                      // El backend espera los campos `calificacion` y `comentario_usr`
-                      const payload = { folio: ticket.folio, calificacion: rating, comentario_usr: ratingComment };
-                      const updated = await riteTicket(payload);
-                      // Normalizar la respuesta para mantener compatibilidad con la UI
-                      if (updated) {
-                        const normalized = {
-                          ...updated,
-                          // algunos backends devuelven nombres distintos; mapeamos a los campos que usa la UI
-                          calificacion: updated.calificacion ?? updated.rating ?? updated.score,
-                          calificacionComentario: updated.comentario_usr ?? updated.comentarios ?? updated.comentario ?? updated.calificacionComentario,
-                        };
-                        setTicket(normalized);
-                      }
-                      setRatingSuccess('Gracias por tu calificación.');
-                      // registrar notificación local para que aparezca en la lista
-                      try { addNotification(String(ticket.folio), `ticket cerrado`, { skipBroadcast: false }); } catch (e) { }
-                    } catch (e) {
-                      console.error('Error enviando calificación:', e);
-                      setRatingSuccess('No se pudo enviar la calificación. Intenta de nuevo.');
-                    } finally {
-                      setRatingLoading(false);
-                    }
-                  }}
-                >Enviar calificación</button>
-                <button className="btn btn-secondary" onClick={() => { setRating(0); setRatingComment(''); setRatingSuccess(''); }} disabled={ratingLoading}>Limpiar</button>
-              </div>
-              {ratingLoading && <div style={{ marginTop: 8 }}>Enviando calificación...</div>}
-              {ratingSuccess && <div style={{ marginTop: 8 }}>{ratingSuccess}</div>}
-            </>
-          )}
         </div>
       )}
+
     </div>
   );
 };
