@@ -1,0 +1,90 @@
+
+.header-icons {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+}
+
+.notification-badge {
+    background: #6e40ff;
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 12px;
+    margin-left: 5px;
+}
+
+/* Paneles Glassmorphism */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Tarjetas de Estadísticas */
+.top-cards-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 25px;
+    margin-bottom: 30px;
+}
+
+.card-stat {
+    padding: 30px;
+    text-align: center;
+    position: relative;
+}
+
+.card-stat .icon-top-right {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    opacity: 0.6;
+}
+
+.card-value { font-size: 56px; font-weight: 800; line-height: 1; margin-bottom: 10px; }
+.card-title { font-size: 16px; opacity: 0.9; font-weight: 400; }
+
+/* Banner Bienvenida */
+.welcome-banner {
+    padding: 25px 40px;
+    margin-bottom: 30px;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+/* Grid de Gráficas */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 0.8fr;
+    gap: 20px;
+}
+
+.chart-container { padding: 20px; }
+.chart-container h3 { margin-top: 0; font-size: 18px; font-weight: 500; margin-bottom: 5px; }
+.chart-container p { font-size: 13px; opacity: 0.7; margin-bottom: 15px; }
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.admin-select {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 8px;
+    outline: none;
+    font-size: 12px;
+}
+
+.chart-div { width: 100%; height: 260px; }
+
+@media (max-width: 1200px) {
+    .dashboard-grid { grid-template-columns: 1fr; }
+}
