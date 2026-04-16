@@ -167,16 +167,6 @@ const TicketTable = () => {
                     </select>
                 </div>
 
-                {/* <div className="form-group mb-0">
-                    <label className="form-label">Ordenar por</label>
-                    <select className="form-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                        <option value="">--</option>
-                        <option value="prioridad">Prioridad</option>
-                        <option value="tipo_ticket">Tipo</option>
-                        <option value="ingeniero">Ingeniero</option>
-                    </select>
-                </div> */}
-
                 <div className="form-group mb-0">
                     <button
                         className="btn btn-secondary"
@@ -190,6 +180,7 @@ const TicketTable = () => {
                         Limpiar
                     </button>
                 </div>
+
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <div>
                         Mostrar
@@ -201,14 +192,12 @@ const TicketTable = () => {
                         </select>
                         entradas
                     </div>
-                    {/* <div style={{ fontSize: 13, color: '#666' }}>{totalItems} resultados</div> */}
                 </div>
             </div>
 
             {/* Tabla */}
             <div >
                 <div className="table-responsive">
-                    {/* className="table table-striped table-hover" */}
                     <table>
                         <thead className="table-light">
                             <tr>
@@ -228,17 +217,55 @@ const TicketTable = () => {
                                 pageItems.map((ticket) => (
                                     <tr key={ticket.folio}>
                                         <td>{ticket.folio}</td>
-                                        <td>{typeof ticket.usuario === 'object' ? (ticket.usuario.nombre || ticket.usuario.userName || JSON.stringify(ticket.usuario)) : ticket.usuario}</td>
-                                        <td>{ticket.tipo_ticket}</td>
+                                        {/* Busca la celda de Usuario en tu código y reemplázala por esta */}
+                                     <td>
+    <div className="user-info-container">
+        {/* Contenedor del círculo blanco */}
+        <div className="user-avatar-circle">
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor" 
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            >
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+        </div>
+
+        {/* Nombre del usuario */}
+        <span>
+            {typeof ticket.usuario === 'object'
+                ? (ticket.usuario.nombre || ticket.usuario.userName || "N/A")
+                : ticket.usuario}
+        </span>
+    </div>
+</td>                                     <td>{ticket.tipo_ticket}</td>
                                         <td>{ticket.fechaCreacion}</td>
+
+                                        {/* 🔥 SOLO ESTO CAMBIÓ */}
                                         <td>
-                                            <span className={`badge ${ticket.estatus === "Abierto" ? 'bg-success text-white' : 'bg-danger text-white'}`}>{ticket.estatus}</span>
+                                            <span className={`badge ${ticket.estatus?.toLowerCase().includes("abierto")
+                                                ? 'bg-success text-white'
+                                                : ticket.estatus?.toLowerCase().includes("progreso")
+                                                    ? 'bg-warning text-dark'
+                                                    : ticket.estatus?.toLowerCase().includes("cerrado")
+                                                        ? 'bg-danger text-white'
+                                                        : 'bg-secondary'
+                                                }`}>
+                                                {ticket.estatus}
+                                            </span>
                                         </td>
+
                                         <td>{ticket.descripcion}</td>
                                         <td>{ticket.ingeniero}</td>
                                         <td>{ticket.ticketMaestro ?? "N/A"}</td>
                                         <td>
-                                            <span className={`badge ${ticket.prioridad === "Alta" ? 'bg-danger' : ticket.prioridad === "Media" ? 'bg-warning text-dark' : 'bg-success'}`}>{ticket.prioridad}</span>
+                                            <span className={`badge ${ticket.prioridad === "Alta" ? 'bg-danger' : ticket.prioridad === "Media" ? 'bg-warning text-dark' : 'bg-success'}`}>
+                                                {ticket.prioridad}
+                                            </span>
                                         </td>
                                     </tr>
                                 ))
@@ -254,8 +281,9 @@ const TicketTable = () => {
                 <nav aria-label="Paginación tickets" style={{ marginTop: 12 }}>
                     <ul className="pagination justify-content-center">
                         <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
-                            <button className="page-link" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} aria-label="Anterior">&laquo;</button>
+                            <button className="page-link" onClick={() => setCurrentPage(p => Math.max(1, p - 1))}>&laquo;</button>
                         </li>
+
                         {Array.from({ length: totalPages }).map((_, i) => {
                             const p = i + 1;
                             return (
@@ -264,14 +292,14 @@ const TicketTable = () => {
                                 </li>
                             );
                         })}
+
                         <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
-                            <button className="page-link" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} aria-label="Siguiente">&raquo;</button>
+                            <button className="page-link" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}>&raquo;</button>
                         </li>
                     </ul>
                 </nav>
             </div>
         </div>
-
     );
 };
 

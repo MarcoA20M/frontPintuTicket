@@ -4,18 +4,20 @@ import AlertModal from './Alerts/AlertModal';
 import io from 'socket.io-client';
 import { sendMessage, connect as stompConnect } from '../services/stompService';
 import { getAllUsuarios } from '../services/usuarioService';
-import {getAllIngenieros} from '../services/ingenieroService'
+import { getAllIngenieros } from '../services/ingenieroService';
 import { getAllTipoTickets } from '../services/tipoTicketService';
-import { getAllTickets, getTicketById, updateTicket } from '../services/ticketService';
+import { getAllTickets, getTicketById, updateTicket, riteTicket } from '../services/ticketService';
 import { useNotifications } from '../contexts/NotificationContext';
 import { getAllEstatus } from '../services/estatus';
 import { getAllPrioridad } from '../services/prioridad';
+import { getHistorialByFolio } from '../services/historial';
 
 import '../components/Styles/tracking.css';
+import './Styles/TicketDetailChatGlass.css';
 
 const Tracking = () => {
     const socketRef = useRef(null);
-    const { addNotification } = useNotifications();
+    const { addNotification, subscribeNotifications, subscribeTicketTopic } = useNotifications();
 
     const [ingenieros, setIngenieros] = useState([]);
     const [tipos, setTipos] = useState([]);
@@ -27,6 +29,17 @@ const Tracking = () => {
     const [ticketActual, setTicketActual] = useState(null);
     const [alertVisible, setAlertVisible] = useState(false);
     const [alertData, setAlertData] = useState({ title: '', message: '' });
+
+    // Estados para el historial
+    const [historial, setHistorial] = useState([]);
+    const [verHistorial, setVerHistorial] = useState(false);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+
+    // Estados para calificación
+    const [rating, setRating] = useState(0);
+    const [ratingComment, setRatingComment] = useState("");
+    const [ratingLoading, setRatingLoading] = useState(false);
+    const [ratingSuccess, setRatingSuccess] = useState("");
 
     // util: formatea un campo usuario que puede ser string o un objeto { nombre, userName, correo, ... }
     const formatUsuario = (usuario) => {
@@ -105,6 +118,37 @@ const Tracking = () => {
         };
     }, []);
 
+    // Suscripciones a notificaciones
+    useEffect(() => {
+        if (!subscribeNotifications) return;
+
+        const unsub = subscribeNotifications(() => {
+            if (ticketActual?.folio) {
+                getHistorialByFolio(ticketActual.folio).then(setHistorial);
+                getTicketById(ticketActual.folio).then(t => {
+                    setTicketActual(t);
+                });
+            }
+            getAllTickets().then(setTickets);
+        });
+
+        return () => unsub?.();
+    }, [ticketActual?.folio, subscribeNotifications]);
+
+    useEffect(() => {
+        let cleanup;
+
+        const run = async () => {
+            if (subscribeTicketTopic && ticketActual?.folio) {
+                cleanup = await subscribeTicketTopic(ticketActual.folio);
+            }
+        };
+
+        run();
+
+        return () => cleanup?.();
+    }, [ticketActual?.folio, subscribeTicketTopic]);
+
     // cargar datos necesarios: usuarios, tipos y prioridades (desde tickets existentes)
     useEffect(() => {
         const fetchData = async () => {
@@ -140,14 +184,6 @@ const Tracking = () => {
                     } else if (chosen.prioridad) {
                         const matched = (prio && prio.length ? prio : []).find(p => (p.nombre || p.prioridad || '').toLowerCase() === String(chosen.prioridad).toLowerCase());
                         if (matched) setPrioridadSeleccionada(String(matched.id_prioridad ?? matched.id));
-                        // else {
-                        //     // intentar con fallback list
-                        //     const fb = ((uniqPrio && uniqPrio.length) ? uniqPrio : []).find(n => n.toLowerCase() === String(chosen.prioridad).toLowerCase());
-                        //     if (fb) {
-                        //         const idx = ((uniqPrio || []).indexOf(fb));
-                        //         setPrioridadSeleccionada(idx >= 0 ? idx + 1 : '');
-                        //     }
-                        // }
                     } else {
                         setPrioridadSeleccionada('');
                     }
@@ -161,15 +197,42 @@ const Tracking = () => {
         fetchData();
     }, []);
 
+    const handleSelectTicket = async (t) => {
+        setTicketActual(t);
+        setIngenieroEncargado(t.ingeniero || '');
+        if (t.id_prioridad) {
+            setPrioridadSeleccionada(String(t.id_prioridad));
+        } else if (t.prioridad) {
+            const matched = (prioridades || []).find(p => (p.nombre || '').toLowerCase() === String(t.prioridad).toLowerCase());
+            if (matched) setPrioridadSeleccionada(String(matched.id_prioridad ?? matched.id));
+            else setPrioridadSeleccionada('');
+        } else {
+            setPrioridadSeleccionada('');
+        }
+        setTipoSeleccionado(t.tipo_ticket || '');
+        setEstatusSeleccionado(t.estatus || 'Abierto');
+        
+        setVerHistorial(true);
+        setLoadingHistory(true);
+        
+        try {
+            const histResp = await getHistorialByFolio(t.folio);
+            setHistorial(Array.isArray(histResp) ? histResp : [histResp]);
+        } catch (error) {
+            console.error('Error cargando historial:', error);
+            setHistorial([]);
+        } finally {
+            setLoadingHistory(false);
+        }
+    };
+
     const handleGuardar = async () => {
         if (!ticketActual) return;
 
         const payload = {
-            // envia lo que el backend espera para updateTicket: puede ser id o folio
             id: ticketActual.id ?? ticketActual.folio,
             folio: ticketActual.folio,
             ingeniero: ingenieroEncargado,
-            // prioridad: nombre legible (opcional), id_prioridad: número si está seleccionado
             prioridad: (prioridades.find(p => String(p.id_prioridad) === String(prioridadSeleccionada)) || {}).nombre || (typeof prioridadSeleccionada === 'string' ? prioridadSeleccionada : undefined),
             id_prioridad: prioridadSeleccionada ? Number(prioridadSeleccionada) : undefined,
             tipo_ticket: tipoSeleccionado,
@@ -178,18 +241,12 @@ const Tracking = () => {
 
         try {
             const updated = await updateTicket(payload);
-            // notificar localmente al usuario que ejecutó la acción (ingeniero)
-            // addNotification(updated.folio, `Tu ticket ${updated.folio} FUE ACTUALIZADO POR: ${updated.ingeniero}`);
-
-            // emitir al servidor para que lo notifique a otros clientes (por ejemplo al solicitante) vía STOMP
+     
             try {
-                // conectar STOMP si es necesario
                 await stompConnect({ url: 'http://localhost:8080/ws' });
 
-                // evento legacy: también enviar a /app/assignTicket si el backend lo maneja
                 await sendMessage('/app/assignTicket', { folio: updated.folio, ingeniero: updated.ingeniero });
 
-                // obtener ticket completo para construir payload
                 let fullTicket = null;
                 try {
                     fullTicket = await getTicketById(updated.folio);
@@ -219,7 +276,6 @@ const Tracking = () => {
             }
 
             setTicketActual(updated);
-            // mostrar modal personalizado en vez de alert nativo
             setAlertData({ title: 'Ticket actualizado', message: `Ticket ${updated.folio} actualizado y notificación enviada.` });
             setAlertVisible(true);
         } catch (err) {
@@ -230,6 +286,61 @@ const Tracking = () => {
         }
     };
 
+    const formatMessageText = (text) =>
+        String(text || "")
+            .split("**")
+            .map((part, i) =>
+                i % 2 ? <strong key={i}>{part}</strong> : part
+            );
+
+    const formatHistorialText = (h) => {
+        if (!h) return [];
+
+        const items = [];
+
+        if (h.comentarios) items.push({ icon: "💬", text: h.comentarios });
+        if (h.detalle) items.push({ icon: "📌", text: h.detalle });
+        if (h.descripcion) items.push({ icon: "📝", text: h.descripcion });
+        if (h.change) items.push({ icon: "🔄", text: h.change });
+
+        const cambios = h.cambios || h.changes;
+
+        if (Array.isArray(cambios)) {
+            cambios.forEach((c) => {
+                const campo = c.field || c.campo;
+                if (!campo) return;
+
+                items.push({
+                    icon: "🔧",
+                    text: `${campo}: ${c.old ?? "Sin asignar"} → ${c.new ?? "Sin asignar"}`,
+                });
+            });
+        }
+
+        return items.length
+            ? items
+            : [{ icon: "ℹ️", text: JSON.stringify(h) }];
+    };
+
+    const messages = ticketActual ? [
+        {
+            sender: "system",
+            text: `👋 Ticket **${ticketActual.folio}** cargado correctamente.`,
+        },
+        {
+            sender: "user",
+            text: `🧾 ${ticketActual.descripcion || 'Sin descripción'}`,
+        },
+        {
+            sender: "system",
+            text: `👨‍🔧 Asignado a: **${ticketActual.ingeniero || 'Sin asignar'}**\n📌 Estado: **${ticketActual.estatus || 'Sin estado'}**`,
+        },
+    ] : [];
+
+    const statusClass = ticketActual?.estatus
+        ?.toLowerCase()
+        .replace(" ", "-");
+
     return (
         <div className="tracking-root">
             <AlertModal
@@ -238,16 +349,14 @@ const Tracking = () => {
                 message={alertData.message}
                 onClose={() => setAlertVisible(false)}
                 ebColor="#7bd389ff"
-                />
-                <div className="tracking-main">
-                {/* Header */}
+            />
+            <div className="tracking-main">
                 <div className="tracking-header">
-                    <h2>Asignación de ticket</h2>
+                    <h2>Asignación de tickets</h2>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }} />
                 </div>
 
                 <div className="tracking-row">
-                    {/* Left panel: form */}
                     <div className="left-panel pill">
                         <div className="label">Solicitante</div>
                         <div className="requester" style={{ background: '#fff', color: '#000', padding: '10px 12px', borderRadius: 8 }}>{ticketActual ? (formatUsuario(ticketActual.usuario) || '—') : '—'}</div>
@@ -293,88 +402,214 @@ const Tracking = () => {
 
                         <div className="left-actions">
                             <button onClick={handleGuardar} className="btn btn-success">Guardar</button>
-                            <button onClick={() => { setTicketActual(null); }} className="btn btn-info">Limpiar</button>
+                            <button onClick={() => { setTicketActual(null); setVerHistorial(false); }} className="btn btn-info">Limpiar</button>
                         </div>
                     </div>
 
-                    {/* Center panel: chat and ticket details */}
                     <div className="center-panel">
-                        <div className="center-top">
-                            <div>
-                                <div className="subject">Asunto : {ticketActual?.tipo_ticket ?? '—'}</div>
-                                <div className="meta">Fecha: {ticketActual ? new Date(ticketActual.fechaCreacion).toLocaleString() : '—'} · Departamento: {ticketActual?.departamento ?? ticketActual?.area ?? '—'}</div>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <div>Folio : {ticketActual?.folio ?? '—'}</div>
-                                <div>Encargado : {ticketActual?.ingeniero ?? 'Sin encargado'}</div>
-                                <div className={`status ${ticketActual?.estatus === 'Abierto' ? 'status-open' : 'status-other'}`}>{ticketActual?.estatus ?? '—'}</div>
-                            </div>
-                        </div>
+                        {!verHistorial ? (
+                            <>
+                                <div className="center-top">
+                                    <div>
+                                        <div className="subject">Asunto : {ticketActual?.tipo_ticket ?? '—'}</div>
+                                        <div className="meta">Fecha: {ticketActual ? new Date(ticketActual.fechaCreacion).toLocaleString() : '—'} · Departamento: {ticketActual?.departamento ?? ticketActual?.area ?? '—'}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                        <div>Folio : {ticketActual?.folio ?? '—'}</div>
+                                        <div>Encargado : {ticketActual?.ingeniero ?? 'Sin encargado'}</div>
+                                        <div className={`status ${ticketActual?.estatus === 'Abierto' ? 'status-open' : 'status-other'}`}>{ticketActual?.estatus ?? '—'}</div>
+                                    </div>
+                                </div>
 
-                        {/* Lista de los 5 tickets en cola (Abiertos) - FIFO: el primero que llegó aparece arriba */}
-                        <div className="messages">
-                            {(() => {
-                                const queue = (tickets || [])
-                                    .filter(t => (t.estatus || '').toLowerCase() === 'abierto')
-                                    .sort((a, b) => new Date(a.fechaCreacion) - new Date(b.fechaCreacion));
-                                const five = queue.slice(0, 5);
-                                if (five.length === 0) {
-                                    return (
-                                        <div className="no-ticket">No hay tickets en cola. Espera a que llegue un ticket nuevo.</div>
-                                    );
-                                }
-                                return (
-                                    <div className="ticket-cards" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                        {five.map((t) => {
-                                            const isSelected = ticketActual && (ticketActual.folio === t.folio || ticketActual.id === t.id);
+                                <div className="messages">
+                                    {(() => {
+                                        const queue = (tickets || [])
+                                            .filter(t => (t.estatus || '').toLowerCase() === 'abierto')
+                                            .sort((a, b) => new Date(a.fechaCreacion) - new Date(b.fechaCreacion));
+                                        const five = queue.slice(0, 5);
+                                        if (five.length === 0) {
+                                            return (
+                                                <div className="no-ticket">No hay tickets en cola. Espera a que llegue un ticket nuevo.</div>
+                                            );
+                                        }
+                                        return (
+                                            <div className="ticket-cards" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                                {five.map((t) => {
+                                                    const isSelected = ticketActual && (ticketActual.folio === t.folio || ticketActual.id === t.id);
+                                                    return (
+                                                        <div
+                                                            key={t.folio ?? t.id}
+                                                            className={`ticket-card ${isSelected ? 'selected' : ''}`}
+                                                            onClick={() => handleSelectTicket(t)}
+                                                            style={{
+                                                                padding: 12,
+                                                                borderRadius: 8,
+                                                                width: '100%',
+                                                                cursor: 'pointer',
+                                                                boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                                                            }}
+                                                        >
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <div>
+                                                                    <div style={{ fontSize: 12, opacity: 0.85 }}>Folio: <strong>{t.folio ?? t.id}</strong></div>
+                                                                    <div style={{ marginTop: 6, fontWeight: 700 }}>{t.tipo_ticket ?? t.tipo ?? '—'}</div>
+                                                                </div>
+                                                                <div style={{ textAlign: 'right' }}>
+                                                                    <div style={{ fontSize: 13 }}>{formatUsuario(t.usuario) || 'Solicitante'}</div>
+                                                                    <div style={{ fontSize: 12, opacity: 0.8 }}>{t.fechaCreacion ? new Date(t.fechaCreacion).toLocaleString() : ''}</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+
+                                <div className="footer-input">
+                                    <input style={{ width: '100%', color: 'black' }} placeholder="Agregar algún comentario" />
+                                    <button>↑</button>
+                                </div>
+                            </>
+                        ) : (
+                            // Vista de historial
+                            <div className="historial-view" style={{ padding: '20px', height: '100%', overflow: 'auto' }}>
+                                <button 
+                                    onClick={() => setVerHistorial(false)}
+                                    style={{
+                                        marginBottom: '20px',
+                                        padding: '8px 16px',
+                                        background: '#6c757d',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '5px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    ← Volver a tickets
+                                </button>
+
+                                <h3 style={{ marginBottom: '15px', color: '#333' }}>
+                                    Historial de Ticket: {ticketActual?.folio}
+                                </h3>
+
+                                <div className={`status-indicator ${statusClass}`} style={{ marginBottom: '20px' }}>
+                                    ● {ticketActual?.estatus}
+                                </div>
+
+                                {loadingHistory ? (
+                                    <p style={{ textAlign: 'center', padding: '20px' }}>Cargando historial...</p>
+                                ) : (
+                                    <div className="chat-history">
+                                        {messages.map((msg, i) => (
+                                            <div key={i} className={`message-bubble ${msg.sender}`}>
+                                                <div className="message-text">
+                                                    {formatMessageText(msg.text)}
+                                                </div>
+                                                <span className="timestamp">
+                                                    {new Date(ticketActual.fechaCreacion).toLocaleString()}
+                                                </span>
+                                            </div>
+                                        ))}
+
+                                        {historial.map((h, i) => {
+                                            const items = formatHistorialText(h);
                                             return (
                                                 <div
-                                                    key={t.folio ?? t.id}
-                                                    className={`ticket-card ${isSelected ? 'selected' : ''}`}
-                                                    onClick={() => {
-                                                        // seleccionar ticket y rellenar panel izquierdo
-                                                        setTicketActual(t);
-                                                        setIngenieroEncargado(t.ingeniero || '');
-                                                        if (t.id_prioridad) setPrioridadSeleccionada(String(t.id_prioridad));
-                                                        else if (t.prioridad) {
-                                                            const matched = (prioridades || []).find(p => (p.nombre || '').toLowerCase() === String(t.prioridad).toLowerCase());
-                                                            if (matched) setPrioridadSeleccionada(String(matched.id_prioridad ?? matched.id));
-                                                            else setPrioridadSeleccionada('');
-                                                        } else setPrioridadSeleccionada('');
-                                                        setTipoSeleccionado(t.tipo_ticket || '');
-                                                        setEstatusSeleccionado(t.estatus || 'Abierto');
-                                                    }}
-                                                    style={{
-                                                        padding: 12,
-                                                        borderRadius: 8,
-                                                        width: '100%',
-                                                        cursor: 'pointer',
-                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
-                                                    }}
+                                                    key={i}
+                                                    className={`message-bubble history ${h.usuario ? "user" : "system"}`}
                                                 >
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <div>
-                                                            <div style={{ fontSize: 12, opacity: 0.85 }}>Folio: <strong>{t.folio ?? t.id}</strong></div>
-                                                            <div style={{ marginTop: 6, fontWeight: 700 }}>{t.tipo_ticket ?? t.tipo ?? '—'}</div>
-                                                        </div>
-                                                        <div style={{ textAlign: 'right' }}>
-                                                            <div style={{ fontSize: 13 }}>{t.usuario ?? t.nombre ?? 'Solicitante'}</div>
-                                                            <div style={{ fontSize: 12, opacity: 0.8 }}>{t.fechaCreacion ? new Date(t.fechaCreacion).toLocaleString() : ''}</div>
-                                                        </div>
+                                                    <div className="history-card">
+                                                        {items.map((it, idx) => (
+                                                            <div key={idx} className="history-item">
+                                                                <span className="history-icon">{it.icon}</span>
+                                                                <span className="history-text">{it.text}</span>
+                                                            </div>
+                                                        ))}
                                                     </div>
+                                                    {h.fecha && (
+                                                        <span className="timestamp">
+                                                            {new Date(h.fecha).toLocaleString()}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             );
                                         })}
                                     </div>
-                                );
-                            })()}
-                        </div>
+                                )}
 
-                        {/* footer-input se mantiene solo con comentario breve (no afecta la selección) */}
-                        <div className="footer-input">
-                            <input style={{ width: '100%', color: 'black' }} placeholder="Agregar algún comentario" />
-                            <button>↑</button>
-                        </div>
+                                {/* Sección de calificación si el ticket está cerrado */}
+                                {ticketActual?.estatus?.toLowerCase() === 'cerrado' && !ticketActual?.calificacion && (
+                                    <div style={{ marginTop: '30px', padding: '20px', background: '#f8f9fa', borderRadius: '8px' }}>
+                                        <h4 style={{ marginBottom: '15px' }}>Califica la atención</h4>
+                                        <p style={{ marginBottom: '15px' }}>
+                                            Tu ticket <b>{ticketActual.folio}</b> ha finalizado.
+                                        </p>
+
+                                        <div className="rating-row">
+                                            <label className="rating-label">Puntuación</label>
+                                            <div
+                                                className="modal-stars"
+                                                style={{ "--rating": `${(rating / 5) * 100}%` }}
+                                                onClick={(e) => {
+                                                    const x = e.clientX - e.currentTarget.getBoundingClientRect().left;
+                                                    setRating(Math.ceil((x / e.currentTarget.offsetWidth) * 5));
+                                                }}
+                                            />
+                                            <select
+                                                className="rating-select"
+                                                value={rating}
+                                                onChange={(e) => setRating(Number(e.target.value))}
+                                            >
+                                                <option value={0}>Selecciona</option>
+                                                <option value={1}>1 - Malo</option>
+                                                <option value={2}>2 - Regular</option>
+                                                <option value={3}>3 - Bueno</option>
+                                                <option value={4}>4 - Muy bueno</option>
+                                                <option value={5}>5 - Excelente</option>
+                                            </select>
+                                        </div>
+
+                                        <textarea
+                                            className="rating-textarea"
+                                            placeholder="Escribe tu comentario..."
+                                            value={ratingComment}
+                                            onChange={(e) => setRatingComment(e.target.value)}
+                                            style={{ width: '100%', marginTop: '15px' }}
+                                        />
+
+                                        <div className="rating-actions" style={{ marginTop: '15px' }}>
+                                            <button
+                                                className="btn btn-primary"
+                                                disabled={ratingLoading || rating === 0}
+                                                onClick={async () => {
+                                                    setRatingLoading(true);
+                                                    await riteTicket({
+                                                        folio: ticketActual.folio,
+                                                        calificacion: rating,
+                                                        comentario_usr: ratingComment,
+                                                    });
+                                                    setRatingLoading(false);
+                                                    setRatingSuccess("¡Gracias por tu opinión!");
+                                                    setTimeout(() => {
+                                                        setVerHistorial(false);
+                                                    }, 1500);
+                                                }}
+                                            >
+                                                {ratingLoading ? "Enviando..." : "Enviar"}
+                                            </button>
+                                        </div>
+
+                                        {ratingSuccess && (
+                                            <div className="rating-success" style={{ marginTop: '10px', color: 'green' }}>
+                                                {ratingSuccess}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

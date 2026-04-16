@@ -40,7 +40,13 @@
    STATUS INDICATOR
 ========================= */
 .status-indicator {
-    margin: 10px 0 15px;
+    position: absolute;    /* Se posiciona respecto al contenedor padre */
+    top: 200px;            /* Lo sube un poco (puedes usar números negativos) */
+    right: 55px;           /* Lo pega a la derecha */
+    
+    /* Mantenemos el estilo visual */
+    z-index: 10;
+    margin: 0;             /* Quitamos márgenes automáticos */
     font-size: 14px;
     font-weight: 700;
     display: inline-flex;
@@ -48,31 +54,28 @@
     gap: 10px;
     padding: 8px 14px;
     border-radius: 14px;
-    border: 1px solid rgba(255,255,255,0.08);
-    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.15);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
-/* 🔴 ABIERTO */
 .status-indicator.abierto {
     color: #0ac000;
-    background: rgba(255, 70, 70, 0.08);
-    border-left: 4px solid #ff4d4d;
+    background: rgba(10, 192, 0, 0.1);
+    border-left: 4px solid #0ac000;
 }
 
-/* 🟡 EN PROCESO */
 .status-indicator.en-proceso {
     color: #ffcc66;
-    background: rgba(255, 180, 0, 0.08);
-    border-left: 4px solid #ffb020;
+    background: rgba(255, 204, 102, 0.1);
+    border-left: 4px solid #ffcc66;
 }
 
-/* 🟢 CERRADO */
 .status-indicator.cerrado {
-    color: #ff0000;
-    background: rgba(46, 229, 157, 0.08);
-    border-left: 4px solid #2ee59d;
+    color: #ff4d4d;
+    background: rgba(255, 77, 77, 0.1);
+    border-left: 4px solid #ff4d4d;
 }
-
 /* =========================
    OVERLAY MODAL
 ========================= */

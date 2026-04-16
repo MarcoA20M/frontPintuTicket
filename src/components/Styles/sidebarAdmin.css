@@ -1,0 +1,192 @@
+/* sidebarAdmin.css */
+
+:root {
+    /* Paleta de colores basada en tu imagen de referencia */
+    --asb-bg-light: #e2a5f0;     /* Brillo superior para el degradado */
+    --asb-bg-main: #D184E1;      /* Color lila base */
+    --asb-bg-dark: #b864cc;      /* Tono profundo para la base */
+    
+    --asb-bg-active: #7A42C1;    /* Morado oscuro para el botón activo */
+    --asb-width: 210px;          /* Ancho estilizado */
+    --asb-text: #FFFFFF;
+    --asb-icon-stroke: #1a1a1a;  /* Trazo oscuro para iconos (estilo dibujo) */
+}
+
+/* --- Estructura Principal del Sidebar --- */
+.asb-sidebar {
+    width: var(--asb-width);
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    height: calc(100% - 2rem);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    
+    /* Degradado de 3 puntos para dar volumen */
+    background: linear-gradient(
+        165deg, 
+        var(--asb-bg-light) 0%, 
+        var(--asb-bg-main) 45%, 
+        var(--asb-bg-dark) 100%
+    );
+    
+    border-radius: 40px; /* Curvatura pronunciada como en tu imagen */
+    border: 1px solid rgba(255, 255, 255, 0.25); /* Efecto de borde iluminado */
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    box-shadow: 0 15px 35px rgba(122, 66, 193, 0.25);
+}
+
+.asb-fixed {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- Cabecera (Logo y Etiqueta Admin) --- */
+.asb-header {
+    padding: 3rem 1rem 1.5rem;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.asb-logo-img {
+    width: 130px;
+    height: auto;
+    margin-bottom: 0.5rem;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+}
+
+.asb-admin-badge {
+    display: block;
+    color: white;
+    font-weight: 900;
+    font-size: 0.75rem;
+    letter-spacing: 2px;
+    opacity: 0.9;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* --- Navegación con Distribución Espaciada --- */
+.asb-scroll {
+    flex: 1; /* Ocupa todo el alto disponible */
+    display: flex;
+    flex-direction: column;
+    padding: 1rem 1.2rem 3rem; /* Espacio extra abajo para estética */
+    overflow-y: auto;
+}
+
+.asb-nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Permite que los hijos se estiren */
+    
+    /* DISTRIBUCIÓN: Esto evita que las opciones se amontonen arriba */
+    justify-content: space-around; 
+}
+
+.asb-nav-item {
+    width: 100%;
+}
+
+/* --- Enlaces de Navegación --- */
+.asb-nav-link {
+    display: flex;
+    align-items: center;
+    padding: 14px 18px;
+    color: var(--asb-text);
+    text-decoration: none;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border-radius: 22px;
+    transition: all 0.2s ease;
+    gap: 12px;
+}
+
+/* Iconos (Estilo Line-Art oscuro) */
+.asb-icon-wrapper svg {
+    width: 28px;
+    height: 28px;
+    stroke: var(--asb-icon-stroke);
+    stroke-width: 2.2px;
+    flex-shrink: 0;
+    transition: stroke 0.2s;
+}
+
+/* --- Estado Seleccionado (Activo) --- */
+.asb-nav-link.asb-active {
+    background: linear-gradient(90deg, var(--asb-bg-active) 0%, #8e53d6 100%);
+    color: white;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+}
+
+.asb-nav-link.asb-active svg {
+    stroke: white; /* El icono cambia a blanco cuando está seleccionado */
+}
+
+/* Hover para los que no están activos */
+.asb-nav-link:hover:not(.asb-active) {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.03);
+}
+
+/* --- Scrollbar Minimalista --- */
+.asb-scroll::-webkit-scrollbar { width: 4px; }
+.asb-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+}
+
+/* --- Botón Hamburguesa (Móvil) --- */
+.asb-hamburger {
+    display: none;
+    position: fixed;
+    top: 18px;
+    left: 18px;
+    z-index: 1100;
+    width: 44px;
+    height: 44px;
+    background: var(--asb-bg-active);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+}
+
+.asb-hamburger span {
+    width: 24px;
+    height: 3px;
+    background: white;
+    transition: all 0.3s ease;
+}
+
+.asb-hamburger.asb-open span:nth-child(1) { transform: translateY(9px) rotate(45deg); }
+.asb-hamburger.asb-open span:nth-child(2) { opacity: 0; }
+.asb-hamburger.asb-open span:nth-child(3) { transform: translateY(-9px) rotate(-45deg); }
+
+/* --- Ajustes Responsivos --- */
+@media (max-width: 1100px) {
+    .asb-hamburger { display: flex; }
+    .asb-sidebar {
+        left: 0; 
+        top: 0;
+        height: 100vh;
+        width: var(--asb-width);
+        border-radius: 0 40px 40px 0;
+        transform: translateX(-110%);
+        margin: 0;
+    }
+    .asb-sidebar.asb-sidebar-open { 
+        transform: translateX(0); 
+    }
+}
+
+
