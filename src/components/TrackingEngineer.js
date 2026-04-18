@@ -1,22 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getAllIngenieros } from '../services/ingenieroService';
 import { getAllTipoTickets } from '../services/tipoTicketService';
 import { getAllEstatus } from '../services/estatus';
 import { getAllPrioridad } from '../services/prioridad';
-import { getTicketsByIngenieroId, getTicketById, updateTicket } from '../services/ticketService';
-// import { stompConnect, sendMessage, stompDisconnect } from '../services/stompService';
+import { getTicketsByIngenieroId, getTicketById, updateTicket, riteTicket } from '../services/ticketService';
+import { getHistorialByFolio } from '../services/historial';
 import { useNotifications } from '../contexts/NotificationContext';
 import AlertModal from './Alerts/AlertModal';
+import '../components/Styles/tracking.css';
+import './Styles/TicketDetailChatGlass.css';
 
 const TrackingEngineer = () => {
-    const { addNotification } = useNotifications();
+    const { addNotification, subscribeNotifications, subscribeTicketTopic } = useNotifications();
+    const messagesEndRef = useRef(null);
+    const chatHistoryRef = useRef(null);
 
     const [ingenieros, setIngenieros] = useState([]);
     const [tipos, setTipos] = useState([]);
     const [prioridades, setPrioridades] = useState([]);
     const [estatusList, setEstatusList] = useState([]);
     const [tickets, setTickets] = useState([]);
+    const [ticketsFiltrados, setTicketsFiltrados] = useState([]);
 
     const [ticketActual, setTicketActual] = useState(null);
     const [usedIdentifier, setUsedIdentifier] = useState(null);
@@ -25,6 +30,21 @@ const TrackingEngineer = () => {
     const requestedFolio = query.get('folio');
     const [currentPage, setCurrentPage] = useState(1);
     const perPage = 5;
+
+    const [filtroEstatus, setFiltroEstatus] = useState('En progreso');
+
+    const [historial, setHistorial] = useState([]);
+    const [verHistorial, setVerHistorial] = useState(false);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+
+    const [rating, setRating] = useState(0);
+    const [ratingComment, setRatingComment] = useState("");
+    const [ratingLoading, setRatingLoading] = useState(false);
+    const [ratingSuccess, setRatingSuccess] = useState("");
+    const [showRatingModal, setShowRatingModal] = useState(false);
+
+    const [chatMessage, setChatMessage] = useState('');
+    const [sendingMessage, setSendingMessage] = useState(false);
 
     const formatUsuario = (usuario) => {
         if (!usuario) return '';
@@ -35,6 +55,34 @@ const TrackingEngineer = () => {
         return String(usuario);
     };
 
+    const formatMessageText = (text) =>
+        String(text || "")
+            .split("**")
+            .map((part, i) =>
+                i % 2 ? <strong key={i}>{part}</strong> : part
+            );
+
+    const formatHistorialText = (h) => {
+        if (!h) return [];
+        const items = [];
+        if (h.comentarios) items.push({ icon: "💬", text: h.comentarios });
+        if (h.detalle) items.push({ icon: "📌", text: h.detalle });
+        if (h.descripcion) items.push({ icon: "📝", text: h.descripcion });
+        if (h.change) items.push({ icon: "🔄", text: h.change });
+        const cambios = h.cambios || h.changes;
+        if (Array.isArray(cambios)) {
+            cambios.forEach((c) => {
+                const campo = c.field || c.campo;
+                if (!campo) return;
+                items.push({
+                    icon: "🔧",
+                    text: `${campo}: ${c.old ?? "Sin asignar"} → ${c.new ?? "Sin asignar"}`,
+                });
+            });
+        }
+        return items.length ? items : [{ icon: "ℹ️", text: JSON.stringify(h) }];
+    };
+
     const [ingenieroEncargado, setIngenieroEncargado] = useState('');
     const [reassign, setReassign] = useState(false);
     const [prioridadSeleccionada, setPrioridadSeleccionada] = useState('');
@@ -43,24 +91,67 @@ const TrackingEngineer = () => {
     const [comentario, setComentario] = useState('');
     const [modal, setModal] = useState({ visible: false, title: '', message: '' });
 
-    // obtener usuario autenticado desde localStorage
+    const scrollToBottom = () => {
+        if (chatHistoryRef.current) {
+            chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
+        }
+    };
+
     const getLoggedIngenieroId = () => {
         try {
             const raw = localStorage.getItem('usuario');
             if (!raw) return null;
             const u = JSON.parse(raw);
-            // posibles campos
             return u.id || u.idUsuario || u.id_ingeniero || u.userId || null;
         } catch (e) {
             return null;
         }
     };
 
-    // Sin sockets: la vista carga los tickets del ingeniero autenticado
-    // y después de cada update vuelve a recargar usando el service.
+    const aplicarFiltroEstatus = (ticketsList, estatusFiltro) => {
+        if (!ticketsList || ticketsList.length === 0) return [];
+
+        if (estatusFiltro === 'Todos') {
+            return [...ticketsList];
+        }
+
+        return ticketsList.filter(ticket => {
+            const estatusTicket = ticket?.estatus || '';
+            return estatusTicket.toLowerCase() === estatusFiltro.toLowerCase();
+        });
+    };
+
+    useEffect(() => {
+        const filtrados = aplicarFiltroEstatus(tickets, filtroEstatus);
+        setTicketsFiltrados(filtrados);
+        setCurrentPage(1);
+
+        if (ticketActual && !filtrados.some(t => t.folio === ticketActual.folio || t.id === ticketActual.id)) {
+            setTicketActual(filtrados.length > 0 ? filtrados[0] : null);
+        }
+    }, [tickets, filtroEstatus]);
+
+    useEffect(() => {
+        if (!subscribeNotifications) return;
+        const unsub = subscribeNotifications(() => {
+            if (ticketActual?.folio) {
+                getHistorialByFolio(ticketActual.folio).then(setHistorial);
+                getTicketById(ticketActual.folio).then(setTicketActual);
+            }
+            loadTicketsForLoggedIngeniero();
+        });
+        return () => unsub?.();
+    }, [ticketActual?.folio, subscribeNotifications]);
+
+    useEffect(() => {
+        let cleanup;
+        if (subscribeTicketTopic && ticketActual?.folio) {
+            subscribeTicketTopic(ticketActual.folio).then(c => cleanup = c);
+        }
+        return () => cleanup?.();
+    }, [ticketActual?.folio, subscribeTicketTopic]);
 
     const loadTicketsForLoggedIngeniero = async () => {
-        // Intentar múltiples identificadores que pueda tener el usuario en localStorage
         try {
             const raw = localStorage.getItem('usuario');
             if (!raw) {
@@ -79,10 +170,8 @@ const TrackingEngineer = () => {
                 u.nombre
             ].filter(Boolean).map(String);
 
-            // eliminar duplicados
             const uniq = Array.from(new Set(candidates));
 
-            // si no hay candidatos, dejar vacío
             if (uniq.length === 0) {
                 console.debug('TrackingEngineer: no identificador en localStorage.usuario:', u);
                 setTickets([]);
@@ -95,8 +184,6 @@ const TrackingEngineer = () => {
                     console.debug('TrackingEngineer: probando TicketsByIngenieroId con:', idCandidate);
                     const t = await getTicketsByIngenieroId(idCandidate);
                     if (Array.isArray(t)) {
-                        // Aceptamos arrays vacíos: el endpoint respondió correctamente
-                        // ordenar por fechaCreacion descendente (más recientes primero)
                         const sortedByDateDesc = (t || []).slice().sort((a, b) => {
                             const da = a && a.fechaCreacion ? new Date(a.fechaCreacion) : null;
                             const db = b && b.fechaCreacion ? new Date(b.fechaCreacion) : null;
@@ -107,11 +194,9 @@ const TrackingEngineer = () => {
                         });
                         setTickets(sortedByDateDesc);
                         setUsedIdentifier(idCandidate);
-                        // si aún no tenemos ticketActual, seleccionar el más reciente (o null si vacío)
                         setTicketActual(prev => prev || (sortedByDateDesc.length ? sortedByDateDesc[0] : null));
                         return sortedByDateDesc;
                     }
-                    // si la respuesta no es un array, seguir intentando con otros candidatos
                     console.debug(`TrackingEngineer: respuesta no es array para ${idCandidate}`);
                 } catch (err) {
                     lastErr = err;
@@ -119,7 +204,6 @@ const TrackingEngineer = () => {
                 }
             }
 
-            // ninguna candidate devolvió tickets
             if (lastErr) console.error('TrackingEngineer: última excepción al obtener tickets:', lastErr);
             setTickets([]);
             return [];
@@ -145,9 +229,7 @@ const TrackingEngineer = () => {
 
                 await loadTicketsForLoggedIngeniero();
 
-                // seleccionar primer ticket si existe
                 setTicketActual(prev => prev || (Array.isArray(tickets) && tickets.length ? tickets[0] : null));
-                // Si se solicitó un folio por query param, intentar seleccionarlo
                 if (requestedFolio) {
                     const found = (tickets || []).find(x => String(x.folio) === String(requestedFolio) || String(x.id) === String(requestedFolio));
                     if (found) setTicketActual(found);
@@ -160,33 +242,79 @@ const TrackingEngineer = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    const handleSelectTicket = async (t) => {
+        setTicketActual(t);
+        setVerHistorial(true);
+        setLoadingHistory(true);
+        setChatMessage('');
+
+        try {
+            const histResp = await getHistorialByFolio(t.folio);
+            setHistorial(Array.isArray(histResp) ? histResp : [histResp]);
+
+            if (t.estatus?.toLowerCase() === 'cerrado' && !t.calificacion) {
+                setShowRatingModal(true);
+            }
+        } catch (error) {
+            console.error('Error cargando historial:', error);
+            setHistorial([]);
+        } finally {
+            setLoadingHistory(false);
+            setTimeout(scrollToBottom, 100);
+        }
+    };
+
+    const handleSendMessage = async () => {
+        if (!chatMessage.trim() || !ticketActual || sendingMessage) return;
+
+        setSendingMessage(true);
+
+        try {
+            const payload = {
+                folio: ticketActual.folio,
+                comentarios: chatMessage,
+                estatus: estatusSeleccionado,
+                id_prioridad: prioridadSeleccionada ? Number(prioridadSeleccionada) : undefined,
+            };
+
+            const updated = await updateTicket(payload);
+            setTicketActual(updated);
+            setChatMessage('');
+
+            const histResp = await getHistorialByFolio(ticketActual.folio);
+            setHistorial(Array.isArray(histResp) ? histResp : [histResp]);
+
+            setTimeout(scrollToBottom, 100);
+        } catch (err) {
+            console.error('Error enviando mensaje:', err);
+            setModal({ visible: true, title: 'Error', message: `No se pudo enviar el mensaje. ${err?.message || ''}` });
+        } finally {
+            setSendingMessage(false);
+        }
+    };
+
     const handleGuardar = async () => {
         if (!ticketActual) return;
-        // Construir payload compatible con TicketDTOUpdate esperado por el backend
         const prioridadNombre = (prioridades.find(p => String(p.id_prioridad) === String(prioridadSeleccionada)) || {}).nombre || (typeof prioridadSeleccionada === 'string' ? prioridadSeleccionada : undefined);
 
-        // Resolver nombre e id del ingeniero asignado (si se eligió reasignar)
         let ingenieroNombreToSend = undefined;
         let ingenieroIdToSend = undefined;
         if (reassign && ingenieroEncargado) {
             ingenieroIdToSend = ingenieroEncargado;
             const found = (ingenieros || []).find(i => String(i.id_ingeniero ?? i.id ?? i.idUsuario ?? i.userId ?? i.userName ?? i.nombre) === String(ingenieroEncargado));
             if (found) ingenieroNombreToSend = found.nombre ?? found.userName ?? found.username ?? String(found.nombre ?? found.userName ?? ingenieroEncargado);
-            else ingenieroNombreToSend = ingenieroEncargado; // fallback: send whatever we have
+            else ingenieroNombreToSend = ingenieroEncargado;
         }
 
         const payload = {
             folio: ticketActual.folio,
-            // enviar ambos: nombre e id para que el backend pueda notificar al usuario correcto
             ingeniero: ingenieroNombreToSend || undefined,
             ingenieroId: ingenieroIdToSend || undefined,
-            // variantes por si el backend espera otras claves
             idIngeniero: ingenieroIdToSend || undefined,
             id_ingeniero: ingenieroIdToSend || undefined,
             prioridad: prioridadNombre,
             estatus: estatusSeleccionado,
             comentarios: comentario || undefined,
-            // incluir datos del usuario solicitante para que el backend pueda notificarlo
             usuario: (typeof ticketActual.usuario === 'string')
                 ? ticketActual.usuario
                 : (ticketActual.usuario?.userName ?? ticketActual.usuario?.username ?? ticketActual.usuario?.nombre ?? ticketActual.usuario ?? undefined),
@@ -200,30 +328,23 @@ const TrackingEngineer = () => {
         };
 
         try {
-            // log para depuración: confirmar qué se envía al backend
-            
             const updated = await updateTicket(payload);
-            // log para depuración: confirmar la respuesta del backend
-            
             const ingenieroNombreFinal = updated?.ingeniero || ingenieroNombreToSend || '';
-            // addNotification(
-            //     updated.folio,
-            //     `Tu ticket con folio ${updated.folio} fue actualizado${ingenieroNombreFinal ? ` por el ingeniero ${ingenieroNombreFinal}` : ''}.`
-            // );
-
-                // No usamos STOMP/sockets aquí por ahora
 
             setTicketActual(updated);
-            // mostrar modal personalizado
             setModal({ visible: true, title: 'Ticket actualizado', message: `El ticket ${updated.folio} fue actualizado correctamente.` });
             await loadTicketsForLoggedIngeniero();
+
+            if (verHistorial) {
+                const histResp = await getHistorialByFolio(updated.folio);
+                setHistorial(Array.isArray(histResp) ? histResp : [histResp]);
+            }
         } catch (err) {
             console.error('Error guardando en TrackingEngineer:', err);
             setModal({ visible: true, title: 'Error', message: `No se pudo actualizar el ticket. ${err?.message || ''}` });
         }
     };
 
-    // Cuando cambie el ticket seleccionado, rellenar los campos del panel izquierdo
     useEffect(() => {
         if (!ticketActual) {
             setIngenieroEncargado('');
@@ -234,20 +355,17 @@ const TrackingEngineer = () => {
             return;
         }
 
-        // Intentar mapear el ingeniero actual del ticket a un identificador conocido
         try {
             let initialIngenieroId = '';
             if (ticketActual.ingenieroId) initialIngenieroId = String(ticketActual.ingenieroId);
             else if (ticketActual.id_ingeniero) initialIngenieroId = String(ticketActual.id_ingeniero);
             else if (ticketActual.ingeniero) {
-                // buscar por nombre en la lista de ingenieros
                 const match = (ingenieros || []).find(i => {
                     const candidates = [i.nombre, i.userName, i.username, i.nombreCompleto].filter(Boolean).map(x => String(x).toLowerCase());
                     return candidates.includes(String(ticketActual.ingeniero).toLowerCase());
                 });
                 if (match) initialIngenieroId = String(match.id_ingeniero ?? match.id ?? match.idUsuario ?? match.userId ?? match.userName ?? match.nombre ?? '');
             }
-            // fallback: si no encontramos id, intentar usar cualquier campo existente
             if (!initialIngenieroId && ticketActual.ingeniero) initialIngenieroId = String(ticketActual.ingeniero);
             setIngenieroEncargado(initialIngenieroId);
         } catch (e) {
@@ -264,12 +382,75 @@ const TrackingEngineer = () => {
 
         setTipoSeleccionado(ticketActual.tipo_ticket || ticketActual.tipo || '');
         setEstatusSeleccionado(ticketActual.estatus || 'Abierto');
-        // sincronizar comentario si existe en el ticket
         setComentario(ticketActual.comentario ?? ticketActual.comentario ?? ticketActual.note ?? '');
     }, [ticketActual, prioridades]);
 
+    const messages = ticketActual ? [
+        { sender: "system", text: `👋 Ticket **${ticketActual.folio}** cargado correctamente.` },
+        { sender: "user", text: `🧾 ${ticketActual.descripcion || 'Sin descripción'}` },
+        { sender: "system", text: `👨‍🔧 Asignado a: **${ticketActual.ingeniero || 'Sin asignar'}**\n📌 Estado: **${ticketActual.estatus || 'Sin estado'}**` },
+    ] : [];
+
+    const statusClass = ticketActual?.estatus?.toLowerCase().replace(" ", "-");
+
     return (
         <div className="tracking-root">
+            <AlertModal visible={modal.visible} title={modal.title} message={modal.message} onClose={() => setModal({ visible: false, title: '', message: '' })} />
+
+            {showRatingModal && (
+                <div className="ticket-rating-overlay">
+                    <div className="ticket-rating-modal">
+                        <h3 className="ticket-rating-header">Califica la atención</h3>
+                        <p>Tu ticket <b>{ticketActual?.folio}</b> ha finalizado.</p>
+                        <div className="rating-row">
+                            <label className="rating-label">Puntuación</label>
+                            <div
+                                className="modal-stars"
+                                style={{ "--rating": `${(rating / 5) * 100}%` }}
+                                onClick={(e) => {
+                                    const x = e.clientX - e.currentTarget.getBoundingClientRect().left;
+                                    setRating(Math.ceil((x / e.currentTarget.offsetWidth) * 5));
+                                }}
+                            />
+                        </div>
+                        <textarea
+                            className="rating-textarea"
+                            placeholder="Escribe tu comentario..."
+                            value={ratingComment}
+                            onChange={(e) => setRatingComment(e.target.value)}
+                        />
+                        <div className="rating-actions">
+                            <button
+                                className="btn btn-primary"
+                                disabled={ratingLoading || rating === 0}
+                                onClick={async () => {
+                                    setRatingLoading(true);
+                                    await riteTicket({
+                                        folio: ticketActual.folio,
+                                        calificacion: rating,
+                                        comentario_usr: ratingComment,
+                                    });
+                                    setRatingLoading(false);
+                                    setRatingSuccess("¡Gracias por tu opinión!");
+                                    setTimeout(() => {
+                                        setShowRatingModal(false);
+                                        setRating(0);
+                                        setRatingComment("");
+                                        setRatingSuccess("");
+                                    }, 1500);
+                                }}
+                            >
+                                {ratingLoading ? "Enviando..." : "Enviar"}
+                            </button>
+                            <button className="btn btn-secondary" onClick={() => setShowRatingModal(false)}>
+                                Cerrar
+                            </button>
+                        </div>
+                        {ratingSuccess && <div className="rating-success">{ratingSuccess}</div>}
+                    </div>
+                </div>
+            )}
+
             <div className="tracking-main">
                 <div className="tracking-header">
                     <h2>Mis tickets asignados</h2>
@@ -278,14 +459,13 @@ const TrackingEngineer = () => {
                 <div className="tracking-row">
                     <div className="left-panel pill">
                         <div className="label">Solicitante</div>
-                        <div className="requester" style={{ background: '#fff', color: '#000', padding: '10px 12px', borderRadius: 8 }}>{ticketActual ? (formatUsuario(ticketActual.usuario) || '—') : '—'}</div>
+                        <div className="requester">{ticketActual ? (formatUsuario(ticketActual.usuario) || '—') : '—'}</div>
 
                         <div className="label">Prioridad</div>
                         <select value={prioridadSeleccionada} onChange={(e) => setPrioridadSeleccionada(e.target.value)}>
-                            <option style={{color: "black"}} value="">Sin prioridad</option>
-                            
-                            {prioridades.map(p => ( 
-                                <option style={{color: "black"}} key={p.id_prioridad ?? p.id ?? p.nombre} value={String(p.id_prioridad ?? p.id ?? p.nombre)}>{p.nombre ?? p.prioridad ?? p}</option>
+                            <option value="">Sin prioridad</option>
+                            {prioridades.map(p => (
+                                <option key={p.id_prioridad ?? p.id ?? p.nombre} value={String(p.id_prioridad ?? p.id ?? p.nombre)}>{p.nombre ?? p.prioridad ?? p}</option>
                             ))}
                         </select>
 
@@ -293,7 +473,7 @@ const TrackingEngineer = () => {
                         <select value={tipoSeleccionado} onChange={(e) => setTipoSeleccionado(e.target.value)}>
                             <option value="">Selecciona un tipo</option>
                             {tipos.map(t => (
-                                <option style={{color: "black"}} key={t.idTipoTicket ?? t.id} value={t.tipo}>{t.tipo}</option>
+                                <option key={t.idTipoTicket ?? t.id} value={t.tipo}>{t.tipo}</option>
                             ))}
                         </select>
 
@@ -301,7 +481,7 @@ const TrackingEngineer = () => {
                         <select value={estatusSeleccionado} onChange={(e) => setEstatusSeleccionado(e.target.value)}>
                             {estatusList && estatusList.length > 0 ? (
                                 estatusList.map(es => (
-                                    <option style={{color: "black"}} key={es.id_estatus ?? es.id} value={es.nombre ?? es.estatus ?? es.value}>{es.nombre ?? es.estatus ?? es.value}</option>
+                                    <option key={es.id_estatus ?? es.id} value={es.nombre ?? es.estatus ?? es.value}>{es.nombre ?? es.estatus ?? es.value}</option>
                                 ))
                             ) : (
                                 <>
@@ -311,19 +491,9 @@ const TrackingEngineer = () => {
                                 </>
                             )}
                         </select>
-                        <div className="label">Comentarios</div>
-                        <div className="mb-2">
-                            <textarea
-                                className="form-control"
-                                rows={3}
-                                placeholder="Agregar algún comentario"
-                                value={comentario}
-                                onChange={(e) => setComentario(e.target.value)}
-                            />
-                        </div>
 
                         <div className="label">
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                            <label className="checkbox-label">
                                 <input
                                     type="checkbox"
                                     checked={reassign}
@@ -336,15 +506,15 @@ const TrackingEngineer = () => {
                                 <span>¿Reasignar a otro ingeniero?</span>
                             </label>
                         </div>
-                                                
+
                         {reassign && (
                             <select value={ingenieroEncargado} onChange={(e) => setIngenieroEncargado(e.target.value)}>
-                                <option style={{ color: "black" }} value="">Sin encargado</option>
+                                <option value="">Sin encargado</option>
                                 {ingenieros.map(ing => {
                                     const ingId = String(ing.id_ingeniero ?? ing.id ?? ing.idUsuario ?? ing.userId ?? ing.userName ?? ing.nombre ?? '');
                                     const label = ing.nombre ?? ing.userName ?? ing.username ?? ing.nombreCompleto ?? ingId;
                                     return (
-                                        <option style={{ color: "black" }} key={ingId} value={ingId}>{label}</option>
+                                        <option key={ingId} value={ingId}>{label}</option>
                                     );
                                 })}
                             </select>
@@ -352,117 +522,190 @@ const TrackingEngineer = () => {
 
                         <div className="left-actions">
                             <button onClick={handleGuardar} className="btn btn-success">Guardar</button>
-                            <button onClick={() => { setTicketActual(null); }} className="btn btn-info">Limpiar</button>
+                            <button onClick={() => { setTicketActual(null); setVerHistorial(false); }} className="btn btn-info">Limpiar</button>
                         </div>
                     </div>
 
                     <div className="center-panel">
-                        <div className="center-top">
-                            <div>
-                                <div className="subject">Asunto : {ticketActual?.tipo_ticket ?? '—'}</div>
-                                <div className="meta">Fecha: {ticketActual ? new Date(ticketActual.fechaCreacion).toLocaleString() : '—'} · Departamento: {ticketActual?.departamento ?? ticketActual?.area ?? '—'}</div>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <div>Folio : {ticketActual?.folio ?? '—'}</div>
-                                <div>Encargado : {ticketActual?.ingeniero ?? 'Sin encargado'}</div>
-                                <div className={`status ${ticketActual?.estatus === 'Abierto' ? 'status-open' : 'status-other'}`}>{ticketActual?.estatus ?? '—'}</div>
-                            </div>
-                        </div>
+                        {!verHistorial ? (
+                            <>
+                                <div className="center-top">
+                                    <div>
+                                        <div className="subject">Asunto : {ticketActual?.tipo_ticket ?? '—'}</div>
+                                        <div className="meta">Fecha: {ticketActual ? new Date(ticketActual.fechaCreacion).toLocaleString() : '—'} · Departamento: {ticketActual?.departamento ?? ticketActual?.area ?? '—'}</div>
+                                    </div>
+                                    <div className="right-info">
+                                        <div>Folio : {ticketActual?.folio ?? '—'}</div>
+                                        <div>Encargado : {ticketActual?.ingeniero ?? 'Sin encargado'}</div>
+                                        <div className={`status ${ticketActual?.estatus === 'Abierto' ? 'status-open' : 'status-other'}`}>{ticketActual?.estatus ?? '—'}</div>
+                                    </div>
+                                </div>
 
-                        <div className="messages">
-                            {(() => {
-                                // lista completa ordenada por fecha de creación descendente (más recientes primero)
-                                const allSorted = (tickets || []).slice().sort((a, b) => {
-                                    const da = a && a.fechaCreacion ? new Date(a.fechaCreacion) : null;
-                                    const db = b && b.fechaCreacion ? new Date(b.fechaCreacion) : null;
-                                    if (da && db) return db - da;
-                                    if (da && !db) return -1;
-                                    if (!da && db) return 1;
-                                    return 0;
-                                });
-                                const total = allSorted.length;
-                                const totalPages = Math.max(1, Math.ceil(total / perPage));
-                                const start = (currentPage - 1) * perPage;
-                                const pageItems = allSorted.slice(start, start + perPage);
+                                <div className="messages">
+                                    {(() => {
+                                        const allSorted = (ticketsFiltrados || []).slice().sort((a, b) => {
+                                            const da = a && a.fechaCreacion ? new Date(a.fechaCreacion) : null;
+                                            const db = b && b.fechaCreacion ? new Date(b.fechaCreacion) : null;
+                                            if (da && db) return db - da;
+                                            if (da && !db) return -1;
+                                            if (!da && db) return 1;
+                                            return 0;
+                                        });
+                                        const total = allSorted.length;
+                                        const totalPages = Math.max(1, Math.ceil(total / perPage));
+                                        const start = (currentPage - 1) * perPage;
+                                        const pageItems = allSorted.slice(start, start + perPage);
 
-                                if (!pageItems || pageItems.length === 0) return (<div className="no-ticket">No tienes tickets asignados.</div>);
+                                        if (!pageItems || pageItems.length === 0) return (<div className="no-ticket">No tienes tickets asignados con el estatus seleccionado.</div>);
 
-                                const goToPage = (p) => {
-                                    const np = Math.max(1, Math.min(totalPages, p));
-                                    setCurrentPage(np);
-                                    const el = document.querySelector('.ticket-cards');
-                                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                };
+                                        return (
+                                            <>
+                                                <div className="ticket-cards">
+                                                    {pageItems.map((t) => {
+                                                        const isSelected = ticketActual && (ticketActual.folio === t.folio || ticketActual.id === t.id);
+                                                        return (
+                                                            <div
+                                                                key={t.folio ?? t.id}
+                                                                className={`ticket-card ${isSelected ? 'selected' : ''}`}
+                                                                onClick={() => handleSelectTicket(t)}
+                                                            >
+                                                                <div className="ticket-card-content">
+                                                                    <div className="ticket-card-left">
+                                                                        <div className="ticket-folio">Folio: <strong>{t.folio ?? t.id}</strong></div>
+                                                                        <div className="ticket-tipo">{t.tipo_ticket ?? t.tipo ?? '—'}</div>
+                                                                        <div className="ticket-descripcion">{t.descripcion ?? t.description ?? '—'}</div>
+                                                                    </div>
+                                                                    <div className="ticket-card-right">
+                                                                        <div className="ticket-usuario">{t.usuario ?? t.nombre ?? 'Solicitante'}</div>
+                                                                        <div className="ticket-fecha">{t.fechaCreacion ? new Date(t.fechaCreacion).toLocaleString() : ''}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
 
-                                return (
-                                    <>
-                                    <div className="ticket-cards" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                        {pageItems.map((t) => {
-                                            const isSelected = ticketActual && (ticketActual.folio === t.folio || ticketActual.id === t.id);
+                                                <nav aria-label="Paginación tickets" className="pagination-nav">
+                                                    <ul className="pagination justify-content-center">
+                                                        <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                                                            <button className="page-link" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} aria-label="Anterior">&laquo;</button>
+                                                        </li>
+                                                        {Array.from({ length: totalPages }).map((_, i) => {
+                                                            const p = i + 1;
+                                                            return (
+                                                                <li key={p} className={`page-item ${p === currentPage ? 'active' : ''}`}>
+                                                                    <button className="page-link" onClick={() => setCurrentPage(p)}>{p}</button>
+                                                                </li>
+                                                            );
+                                                        })}
+                                                        <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                                                            <button className="page-link" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} aria-label="Siguiente">&raquo;</button>
+                                                        </li>
+                                                    </ul>
+                                                </nav>
+                                            </>
+                                        );
+                                    })()}
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <button
+                                    onClick={() => setVerHistorial(false)}
+                                    className="btn-volver-historial"
+                                >
+                                    ← Volver a tickets
+                                </button>
+
+                                <div className="historial-header">
+                                    <h3 style={{ color: '#fff', marginBottom: 10 }}>Historial: {ticketActual?.folio}</h3>
+                                    <div className={`status-indicator ${statusClass}`}>
+                                        ● {ticketActual?.estatus}
+                                    </div>
+                                </div>
+
+                                {loadingHistory ? (
+                                    <p style={{ color: '#fff', flex: 1 }}>Cargando historial...</p>
+                                ) : (
+                                    <div
+                                        ref={chatHistoryRef}
+                                        className="chat-history"
+                                        style={{
+                                            flex: 1,
+                                            overflowY: 'auto',
+                                            overflowX: 'hidden',
+                                            minHeight: 0
+                                        }}
+                                    >
+                                        {messages.map((msg, i) => (
+                                            <div key={i} className={`${msg.sender === 'user' ? 'tracking-chat-user' : 'tracking-chat-system'}`}>
+                                                <div className="message-text">{formatMessageText(msg.text)}</div>
+                                                <span className="timestamp">{new Date(ticketActual.fechaCreacion).toLocaleString()}</span>
+                                            </div>
+                                        ))}
+
+                                        {historial.map((h, i) => {
+                                            const items = formatHistorialText(h);
+                                            const esIngeniero = h.ingeniero || h.id_ingeniero || h.usuario?.rol === 'ingeniero';
+                                            const esSolicitante = h.usuario && !esIngeniero;
+                                            let bubbleClass = 'system';
+
+                                            if (h.comentarios) {
+                                                if (esIngeniero) {
+                                                    bubbleClass = 'user';
+                                                } else if (esSolicitante) {
+                                                    bubbleClass = 'user';
+                                                }
+                                            }
+
                                             return (
-                                                <div
-                                                    key={t.folio ?? t.id}
-                                                    className={`ticket-card ${isSelected ? 'selected' : ''}`}
-                                                    onClick={() => {
-                                                        setTicketActual(t);
-                                                        // los campos del left panel se sincronizan via useEffect
-                                                    }}
-                                                    style={{
-                                                        padding: 12,
-                                                        borderRadius: 8,
-                                                        width: '100%',
-                                                        cursor: 'pointer',
-                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
-                                                    }}
-                                                >
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <div>
-                                                            <div style={{ fontSize: 12, opacity: 0.85 }}>Folio: <strong>{t.folio ?? t.id}</strong></div>
-                                                            <div style={{ marginTop: 6, fontWeight: 700 }}>{t.tipo_ticket ?? t.tipo ?? '—'}</div>
-                                                            <div style={{ marginTop: 6 }}>{t.descripcion ?? t.description ?? '—'}</div>
-                                                        </div>
-                                                        <div style={{ textAlign: 'right' }}>
-                                                            <div style={{ fontSize: 13 }}>{t.usuario ?? t.nombre ?? 'Solicitante'}</div>
-                                                            <div style={{ fontSize: 12, opacity: 0.8 }}>{t.fechaCreacion ? new Date(t.fechaCreacion).toLocaleString() : ''}</div>
-                                                        </div>
+                                                <div key={i} className={`${bubbleClass === 'user' ? 'tracking-chat-history-user' : 'tracking-chat-history-system'}`}>
+                                                    <div className="history-card">
+                                                        {items.map((it, idx) => (
+                                                            <div key={idx} className="history-item">
+                                                                <span className="history-icon">{it.icon}</span>
+                                                                <span className="history-text">{it.text}</span>
+                                                            </div>
+                                                        ))}
                                                     </div>
+                                                    {h.fecha && (
+                                                        <span className="timestamp">{new Date(h.fecha).toLocaleString()}</span>
+                                                    )}
                                                 </div>
                                             );
                                         })}
+                                        <div ref={messagesEndRef} />
                                     </div>
+                                )}
 
-                                    {/* Paginación simple */}
-                                        <nav aria-label="Paginación tickets" style={{ marginTop: 12 }}>
-                                            <ul className="pagination justify-content-center">
-                                                <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
-                                                    <button className="page-link" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} aria-label="Anterior">&laquo;</button>
-                                                </li>
-                                                {Array.from({ length: totalPages }).map((_, i) => {
-                                                    const p = i + 1;
-                                                    return (
-                                                        <li key={p} className={`page-item ${p === currentPage ? 'active' : ''}`}>
-                                                            <button className="page-link" onClick={() => setCurrentPage(p)}>{p}</button>
-                                                        </li>
-                                                    );
-                                                })}
-                                                <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
-                                                    <button className="page-link" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} aria-label="Siguiente">&raquo;</button>
-                                                </li>
-                                            </ul>
-                                        </nav>
-                                    </>
-                                );
-                            })()}
-                        </div>
-
-                        
-                            </div>
-                        </div>
-                    {/* Modal personalizado para mensajes */}
-                    <AlertModal visible={modal.visible} title={modal.title} message={modal.message} onClose={() => setModal({ visible: false, title: '', message: '' })} />
+                                <div className="footer-input" style={{ marginTop: 15, flexShrink: 0 }}>
+                                    <input
+                                        style={{ width: '100%', color: 'black' }}
+                                        placeholder={ticketActual?.estatus?.toLowerCase() === 'cerrado' ? 'Ticket cerrado - No se pueden agregar comentarios' : 'Agregar algún comentario'}
+                                        value={chatMessage}
+                                        onChange={(e) => setChatMessage(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleSendMessage();
+                                            }
+                                        }}
+                                        disabled={ticketActual?.estatus?.toLowerCase() === 'cerrado'}
+                                    />
+                                    <button
+                                        onClick={handleSendMessage}
+                                        disabled={!chatMessage.trim() || sendingMessage || ticketActual?.estatus?.toLowerCase() === 'cerrado'}
+                                    >
+                                        ↑
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
-            );
-        };
+            </div>
+        </div>
+    );
+};
 
-        export default TrackingEngineer;
+export default TrackingEngineer;

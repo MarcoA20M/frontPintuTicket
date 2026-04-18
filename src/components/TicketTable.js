@@ -20,6 +20,9 @@ const TicketTable = () => {
     const [ingenierosOptions, setIngenierosOptions] = useState([]);
     const [loadingOptions, setLoadingOptions] = useState(true);
 
+    const [filtroEstatus, setFiltroEstatus] = useState("");
+    const estatus = Array.from(new Set(tickets.map(t => t.estatus).filter(Boolean)));
+
     useEffect(() => {
         const fetchTickets = async () => {
             try {
@@ -72,7 +75,9 @@ const TicketTable = () => {
     const [currentPage, setCurrentPage] = useState(1);
 
     // Reset de página al cambiar filtros o pageSize (hook debe estar en top-level)
-    React.useEffect(() => { setCurrentPage(1); }, [filtroPrioridad, filtroTipo, filtroIngeniero, pageSize]);
+    React.useEffect(() => {
+        setCurrentPage(1);
+    }, [filtroPrioridad, filtroTipo, filtroIngeniero, filtroEstatus, pageSize]);
 
     if (loading) return <p>Cargando tickets...</p>;
     if (error) return <p style={{ color: "red" }}>{error}</p>;
@@ -92,7 +97,8 @@ const TicketTable = () => {
         return (
             (!filtroPrioridad || t.prioridad === filtroPrioridad) &&
             (!filtroTipo || t.tipo_ticket === filtroTipo) &&
-            (!filtroIngeniero || t.ingeniero === filtroIngeniero)
+            (!filtroIngeniero || t.ingeniero === filtroIngeniero) &&
+            (!filtroEstatus || (t.estatus || '').toLowerCase() === filtroEstatus.toLowerCase())
         );
     });
 
@@ -167,6 +173,23 @@ const TicketTable = () => {
                     </select>
                 </div>
 
+
+                <div className="form-group mb-0">
+                    <label className="form-label">Estatus</label>
+                    <select
+                        className="form-select"
+                        value={filtroEstatus}
+                        onChange={(e) => setFiltroEstatus(e.target.value)}
+                    >
+                        <option value="">Todos</option>
+                        {estatus.map((e) => (
+                            <option key={e} value={e} style={{ color: 'black' }}>
+                                {e}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
                 <div className="form-group mb-0">
                     <button
                         className="btn btn-secondary"
@@ -218,31 +241,32 @@ const TicketTable = () => {
                                     <tr key={ticket.folio}>
                                         <td>{ticket.folio}</td>
                                         {/* Busca la celda de Usuario en tu código y reemplázala por esta */}
-                                     <td>
-    <div className="user-info-container">
-        {/* Contenedor del círculo blanco */}
-        <div className="user-avatar-circle">
-            <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor" 
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-            >
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-        </div>
+                                        <td>
+                                            <div className="user-info-container">
+                                                {/* Contenedor del círculo blanco */}
+                                                <div className="user-avatar-circle">
+                                                    <svg
+                                                        viewBox="0 0 24 24"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        strokeWidth="2.5"
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                    >
+                                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                                        <circle cx="12" cy="7" r="4"></circle>
+                                                    </svg>
+                                                </div>
 
-        {/* Nombre del usuario */}
-        <span>
-            {typeof ticket.usuario === 'object'
-                ? (ticket.usuario.nombre || ticket.usuario.userName || "N/A")
-                : ticket.usuario}
-        </span>
-    </div>
-</td>                                     <td>{ticket.tipo_ticket}</td>
+                                                {/* Nombre del usuario */}
+                                                <span>
+                                                    {typeof ticket.usuario === 'object'
+                                                        ? (ticket.usuario.nombre || ticket.usuario.userName || "N/A")
+                                                        : ticket.usuario}
+                                                </span>
+                                            </div>
+                                        </td>                                    
+                                         <td>{ticket.tipo_ticket}</td>
                                         <td>{ticket.fechaCreacion}</td>
 
                                         {/* 🔥 SOLO ESTO CAMBIÓ */}

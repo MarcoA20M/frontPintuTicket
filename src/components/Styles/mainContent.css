@@ -83,7 +83,7 @@
     box-shadow: 0 0 10px var(--purple-primary);
 }
 
-*, ::before, ::after {
+ ::before, ::after {
     margin: 0;
     padding: 0;
     scroll-behavior: smooth;

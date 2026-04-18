@@ -1,4 +1,3 @@
-/* Styles extraídos de Tracking.js */
 :root {
   --white-08: rgba(255, 255, 255, 0.08);
   --white-06: rgba(255, 255, 255, 0.06);
@@ -9,16 +8,16 @@
 /* Root layout */
 .tracking-root {
   display: flex;
-  min-height: 100vh;
   color: #fff;
+  overflow-x: hidden; /* Evita scroll horizontal global */
 }
 
 .tracking-main {
   flex: 1;
   padding-left: 50px;
-  /* display: flex; */
   flex-direction: column;
   gap: 10px;
+  overflow-x: hidden; /* Evita scroll horizontal */
 }
 
 /* Header */
@@ -26,10 +25,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  
 }
 
+
+
 .tracking-header h2 {
-  margin: 0;
+  margin: 10;
 }
 
 /* Content row */
@@ -39,6 +41,7 @@
   align-items: stretch;
   flex: 1;
   flex-wrap: wrap;
+  overflow-x: hidden; /* Evita scroll horizontal */
 }
 
 /* Left panel (form) */
@@ -56,7 +59,6 @@
 }
 
 .pill {
-  /* reutilizable */
   background: var(--muted-pill);
   padding: 10px 14px;
   border-radius: 8px;
@@ -76,11 +78,37 @@
   color: #000;
 }
 
+/* Estilo para el textarea */
+.left-panel textarea {
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  outline: none;
+  color: #000;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Estilo para el requester */
+.requester {
+  background: #fff;
+  color: #000;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+/* Checkbox label */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
 .left-actions {
   display: flex;
   gap: 10px;
   margin-top: 50px;
-  /* mover los botones hacia arriba */
   align-items: center;
 }
 
@@ -91,13 +119,13 @@
   cursor: pointer;
 }
 
-.btn-save {
+.btn-success {
   background: #2ecc71;
   color: #fff;
 }
 
-.btn-clear {
-  background: #e74c3c;
+.btn-info {
+  background: #3498db;
   color: #fff;
 }
 
@@ -111,6 +139,8 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  overflow: hidden; /* Contenedor principal con overflow hidden */
+  position: relative; /* Para contexto de apilamiento */
 }
 
 .center-top {
@@ -118,6 +148,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+  flex-shrink: 0; /* No se encoge */
 }
 
 .center-top .subject {
@@ -127,6 +158,10 @@
 .center-top .meta {
   font-size: 12px;
   opacity: 0.85;
+}
+
+.right-info {
+  text-align: right;
 }
 
 .status {
@@ -141,42 +176,54 @@
   color: #f39c12;
 }
 
+/* Filtro de estatus */
+.filter-container {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-shrink: 0; /* No se encoge */
+}
+
+.filter-container label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.filter-select {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+/* Contenedor de mensajes - permite scroll vertical pero no horizontal */
 .messages {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden; /* IMPORTANTE: evita scroll horizontal */
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding: 4px 0; /* Pequeño padding vertical para dar espacio a la animación */
+  position: relative;
 }
 
-.msg {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
+
+
+/* Personalizar scrollbar (opcional) */
+.messages::-webkit-scrollbar {
+  width: 6px;
 }
 
-.msg-user {
-  justify-content: flex-start;
+.messages::-webkit-scrollbar-track {
+  background: var(--white-08);
+  border-radius: 3px;
 }
 
-.msg-engineer {
-  justify-content: flex-end;
-}
-
-.msg .avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: #fff;
-  flex-shrink: 0;
-}
-
-.msg .bubble {
-  background: #cfe9d9;
-  color: #000;
-  padding: 12px;
-  border-radius: 12px;
-  max-width: 70%;
+.messages::-webkit-scrollbar-thumb {
+  background: var(--muted-pill);
+  border-radius: 3px;
 }
 
 .no-ticket {
@@ -185,28 +232,151 @@
   background: var(--white-02);
 }
 
-.footer-input {
-  margin-top: 12px;
+/* Ticket cards (lista) - Con animación sin desbordamiento */
+.ticket-cards {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  padding-bottom: 4px; /* Espacio extra para la animación */
 }
 
-.footer-input input {
-  flex: 1;
-  padding: 12px 16px;
-  border-radius: 24px;
-  border: none;
-  outline: none;
-}
-
-.footer-input button {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
+.ticket-card {
   background: #fff;
-  border: none;
+  color: #000;
+  padding: 10px 12px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   cursor: pointer;
+  transition: all 200ms ease;
+  width: 100%;
+  box-sizing: border-box;
+  position: relative; /* Para mantener contexto */
+  margin: 0; /* Sin margen extra */
+}
+
+/* Animación hover - ahora sin desbordamiento porque el contenedor tiene padding */
+.ticket-card:hover {
+  background: #e6f0ff;
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  color: #000;
+  position: relative;
+  z-index: 1; /* Se superpone pero no desborda el contenedor padre */
+}
+
+.ticket-card.selected {
+  background: #501d67;
+  color: #fff;
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.ticket-card.selected:hover {
+  background: #401653;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Para que el contenido interno no se desborde */
+.ticket-card-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+}
+
+.ticket-card-left {
+  flex: 1;
+  min-width: 0; /* Permite que el texto se recorte si es necesario */
+  overflow: hidden;
+}
+
+/* Truncar texto largo */
+.ticket-folio {
+  font-size: 11px;
+  opacity: 0.8;
+  margin-bottom: 2px;
+}
+
+.ticket-tipo {
+  margin-top: 4px;
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticket-descripcion {
+  margin-top: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticket-card-right {
+  text-align: right;
+  flex-shrink: 0; /* Evita que se encoja demasiado */
+  min-width: 100px; /* Ancho mínimo para la columna derecha */
+}
+
+.ticket-usuario {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticket-fecha {
+  font-size: 10px;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+/* Paginación */
+.pagination-nav {
+  margin-top: 12px;
+  flex-shrink: 0; /* No se encoge */
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  list-style: none;
+  padding: 0;
+  gap: 5px;
+}
+
+.page-item {
+  display: inline-block;
+}
+
+.page-item.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.page-item.active .page-link {
+  background-color: #501d67;
+  border-color: #501d67;
+  color: #fff;
+}
+
+.page-link {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.page-link:hover {
+  background-color: #f0f0f0;
 }
 
 /* Responsive adjustments */
@@ -224,38 +394,137 @@
   .tracking-row {
     flex-direction: column;
   }
+  
+  .ticket-card-right {
+    min-width: 80px; /* Menor ancho en móviles */
+  }
+  
+  .ticket-usuario {
+    font-size: 10px;
+  }
+  
+  .ticket-fecha {
+    font-size: 9px;
+  }
+} 
+
+
+
+.btn-volver-historial {
+    margin-bottom: 15px;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    cursor: pointer;
+    align-self: flex-end;
+    flex-shrink: 0;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    
+    /* 🔥 NUEVAS PROPIEDADES PARA QUE NO SE BLOQUEE */
+    position: relative;
+    z-index: 10;
+    pointer-events: auto;
 }
 
-/* Ticket cards (lista) */
-.ticket-cards {
+.btn-volver-historial:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateX(3px);  /* ← cambiado a positivo para mover a la derecha */
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-volver-historial:active {
+    transform: translateX(1px);  /* ← cambiado a positivo */
+}
+
+
+
+
+.historial-header {
+    margin-top: -58px;  /* Lo sube 10px */
+    margin-bottom: 2px;
+    flex-shrink: 0;
+}
+
+
+/* Footer input */
+.footer-input {
+  margin-top: 12px;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
-.tracking-root .ticket-card {
+.footer-input input {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 24px;
+  border: none;
+  outline: none;
   background: #fff;
   color: #000;
-  padding: 12px;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.footer-input input:disabled {
+  background: rgba(255, 255, 255, 0.5);
+  cursor: not-allowed;
+}
+
+.footer-input button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
   cursor: pointer;
-  transition: background 160ms ease, transform 160ms ease, color 160ms ease;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
 }
 
-.tracking-root .ticket-card:hover {
-  background: #e6f0ff;
-  transform: translateY(-2px);
-  color: #000;
+
+
+/* Clases específicas para TrackingEngineer - Sin conflictos */
+.tracking-chat-user {
+    align-self: flex-start !important;
+    background: #e9ecef !important;
+    color: #333 !important;
+    margin-right: auto !important;
+    margin-left: 0 !important;
+    border-radius: 12px !important;
+    padding: 10px 15px !important;
+    max-width: 70% !important;
 }
 
-.tracking-root .ticket-card.selected {
-  background: #501d67;
-  color: #fff;
-  transform: translateY(0);
+.tracking-chat-system {
+    align-self: flex-end !important;
+    background: #6a11cb !important;
+    color: white !important;
+    margin-left: auto !important;
+    margin-right: 0 !important;
+    border-radius: 12px !important;
+    padding: 10px 15px !important;
+    max-width: 70% !important;
 }
 
-.tracking-root .ticket-card.selected:hover {
-  background: #401653;
+.tracking-chat-history-user {
+    align-self: flex-start !important;
+    margin-right: auto !important;
+    background: #f1f3f5 !important;
+    color: #333 !important;
+    border-radius: 12px !important;
+    padding: 10px 15px !important;
 }
 
+.tracking-chat-history-system {
+    align-self: flex-end !important;
+    margin-left: auto !important;
+    background: #6a11cb !important;
+    border-radius: 12px !important;
+    padding: 10px 15px !important;
+}

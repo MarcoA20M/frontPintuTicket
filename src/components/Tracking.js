@@ -57,6 +57,8 @@ const Tracking = () => {
     const [prioridadSeleccionada, setPrioridadSeleccionada] = useState('');
     const [tipoSeleccionado, setTipoSeleccionado] = useState('');
     const [estatusSeleccionado, setEstatusSeleccionado] = useState('Abierto');
+    const [filtroEstatus, setFiltroEstatus] = useState('Abierto');
+
 
     // Conectar socket y listeners (run once)
     useEffect(() => {
@@ -211,10 +213,10 @@ const Tracking = () => {
         }
         setTipoSeleccionado(t.tipo_ticket || '');
         setEstatusSeleccionado(t.estatus || 'Abierto');
-        
+
         setVerHistorial(true);
         setLoadingHistory(true);
-        
+
         try {
             const histResp = await getHistorialByFolio(t.folio);
             setHistorial(Array.isArray(histResp) ? histResp : [histResp]);
@@ -241,7 +243,7 @@ const Tracking = () => {
 
         try {
             const updated = await updateTicket(payload);
-     
+
             try {
                 await stompConnect({ url: 'http://localhost:8080/ws' });
 
@@ -353,7 +355,19 @@ const Tracking = () => {
             <div className="tracking-main">
                 <div className="tracking-header">
                     <h2>Asignación de tickets</h2>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }} />
+
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                        <select
+                            value={filtroEstatus}
+                            onChange={(e) => setFiltroEstatus(e.target.value)}
+                            style={{ padding: '6px 10px', borderRadius: 6 }}
+                        >
+                            <option value="">Todos</option>
+                            <option value="Abierto">Abierto</option>
+                            <option value="En progreso">En progreso</option>            
+                            <option value="Cerrado">Cerrado</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div className="tracking-row">
@@ -363,25 +377,25 @@ const Tracking = () => {
 
                         <div className="label">Ingeniero encargado</div>
                         <select value={ingenieroEncargado} onChange={(e) => setIngenieroEncargado(e.target.value)}>
-                            <option style={{color: "black"}} value="">Sin encargado</option>
+                            <option style={{ color: "black" }} value="">Sin encargado</option>
                             {ingenieros.map(ing => (
-                                <option style={{color: "black"}} key={ing.id_ingeniero ?? ing.id ?? ing.idUsuario} value={ing.nombre}>{ing.nombre}</option>
+                                <option style={{ color: "black" }} key={ing.id_ingeniero ?? ing.id ?? ing.idUsuario} value={ing.nombre}>{ing.nombre}</option>
                             ))}
                         </select>
 
                         <div className="label">Prioridad</div>
                         <select value={prioridadSeleccionada} onChange={(e) => setPrioridadSeleccionada(e.target.value)}>
-                            <option style={{color: "black"}} value="">Sin prioridad</option>
+                            <option style={{ color: "black" }} value="">Sin prioridad</option>
                             {prioridades.map(p => (
-                                <option style={{color: "black"}}key={p.id_prioridad ?? p.id ?? p.nombre} value={String(p.id_prioridad ?? p.id ?? p.nombre)}>{p.nombre ?? p.prioridad ?? p}</option>
+                                <option style={{ color: "black" }} key={p.id_prioridad ?? p.id ?? p.nombre} value={String(p.id_prioridad ?? p.id ?? p.nombre)}>{p.nombre ?? p.prioridad ?? p}</option>
                             ))}
                         </select>
 
                         <div className="label">Tipo</div>
                         <select value={tipoSeleccionado} onChange={(e) => setTipoSeleccionado(e.target.value)}>
-                            <option style={{color: "black"}} value="">Selecciona un tipo</option>
+                            <option style={{ color: "black" }} value="">Selecciona un tipo</option>
                             {tipos.map(t => (
-                                <option style={{color: "black"}} key={t.idTipoTicket ?? t.id} value={t.tipo}>{t.tipo}</option>
+                                <option style={{ color: "black" }} key={t.idTipoTicket ?? t.id} value={t.tipo}>{t.tipo}</option>
                             ))}
                         </select>
 
@@ -389,7 +403,7 @@ const Tracking = () => {
                         <select value={estatusSeleccionado} onChange={(e) => setEstatusSeleccionado(e.target.value)}>
                             {estatusList && estatusList.length > 0 ? (
                                 estatusList.map(es => (
-                                    <option style={{color: "black"}} key={es.id_estatus ?? es.id} value={es.nombre ?? es.estatus ?? es.value}>{es.nombre ?? es.estatus ?? es.value}</option>
+                                    <option style={{ color: "black" }} key={es.id_estatus ?? es.id} value={es.nombre ?? es.estatus ?? es.value}>{es.nombre ?? es.estatus ?? es.value}</option>
                                 ))
                             ) : (
                                 <>
@@ -424,7 +438,13 @@ const Tracking = () => {
                                 <div className="messages">
                                     {(() => {
                                         const queue = (tickets || [])
-                                            .filter(t => (t.estatus || '').toLowerCase() === 'abierto')
+                                            .filter(t => {
+                                                if (!filtroEstatus) return true;
+
+                                                return (t.estatus || '')
+                                                    .toLowerCase()
+                                                    .trim() === filtroEstatus.toLowerCase().trim();
+                                            })
                                             .sort((a, b) => new Date(a.fechaCreacion) - new Date(b.fechaCreacion));
                                         const five = queue.slice(0, 5);
                                         if (five.length === 0) {
@@ -467,15 +487,12 @@ const Tracking = () => {
                                     })()}
                                 </div>
 
-                                <div className="footer-input">
-                                    <input style={{ width: '100%', color: 'black' }} placeholder="Agregar algún comentario" />
-                                    <button>↑</button>
-                                </div>
+
                             </>
                         ) : (
                             // Vista de historial
                             <div className="historial-view" style={{ padding: '20px', height: '100%', overflow: 'auto' }}>
-                                <button 
+                                <button
                                     onClick={() => setVerHistorial(false)}
                                     style={{
                                         marginBottom: '20px',
