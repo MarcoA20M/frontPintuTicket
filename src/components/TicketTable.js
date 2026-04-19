@@ -19,7 +19,7 @@ const TicketTable = () => {
     const [tiposOptions, setTiposOptions] = useState([]);
     const [ingenierosOptions, setIngenierosOptions] = useState([]);
     const [loadingOptions, setLoadingOptions] = useState(true);
-
+    const [terminoBusqueda, setTerminoBusqueda] = useState("");
     const [filtroEstatus, setFiltroEstatus] = useState("");
     const estatus = Array.from(new Set(tickets.map(t => t.estatus).filter(Boolean)));
 
@@ -74,13 +74,49 @@ const TicketTable = () => {
     const [pageSize, setPageSize] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
 
-    // Reset de página al cambiar filtros o pageSize (hook debe estar en top-level)
     React.useEffect(() => {
         setCurrentPage(1);
-    }, [filtroPrioridad, filtroTipo, filtroIngeniero, filtroEstatus, pageSize]);
+    }, [filtroPrioridad, filtroTipo, filtroIngeniero, filtroEstatus, terminoBusqueda, pageSize]);
 
     if (loading) return <p>Cargando tickets...</p>;
     if (error) return <p style={{ color: "red" }}>{error}</p>;
+
+
+
+    const formatUsuario = (usuario) => {
+        if (!usuario) return '';
+        if (typeof usuario === 'string') return usuario;
+        if (typeof usuario === 'object') {
+            return usuario.nombre || usuario.userName || usuario.username ||
+                `${usuario.nombre || ''} ${usuario.apePat || ''} ${usuario.apeMat || ''}`.trim() ||
+                JSON.stringify(usuario);
+        }
+        return String(usuario);
+    };
+
+    const detectarTipoBusqueda = (texto) => {
+        if (!texto.trim()) return 'auto';
+        const esNumero = /^\d+$/.test(texto.trim());
+        const esFolioFormato = /^[A-Za-z]*[-_]?\d+$/i.test(texto.trim());
+        if (esNumero || esFolioFormato) return 'folio';
+        return 'usuario';
+    };
+
+    const filtrarTicketsPorBusqueda = (ticketsList) => {
+        if (!terminoBusqueda.trim()) return ticketsList;
+        const busquedaLower = terminoBusqueda.toLowerCase().trim();
+        const tipoDetectado = detectarTipoBusqueda(terminoBusqueda);
+        return ticketsList.filter(ticket => {
+            if (tipoDetectado === 'folio') {
+                return String(ticket.folio || ticket.id || '').toLowerCase().includes(busquedaLower);
+            } else {
+                return formatUsuario(ticket.usuario).toLowerCase().includes(busquedaLower);
+            }
+        });
+    };
+
+
+
 
     // opciones únicas para selects
     const prioridades = Array.from(new Set(tickets.map(t => t.prioridad).filter(Boolean)));
@@ -92,7 +128,6 @@ const TicketTable = () => {
     const displayTipos = (tiposOptions && tiposOptions.length) ? tiposOptions : tipos;
     const displayIngenieros = (ingenierosOptions && ingenierosOptions.length) ? ingenierosOptions : ingenieros;
 
-    // aplicar filtros
     let filteredTickets = tickets.filter(t => {
         return (
             (!filtroPrioridad || t.prioridad === filtroPrioridad) &&
@@ -101,6 +136,14 @@ const TicketTable = () => {
             (!filtroEstatus || (t.estatus || '').toLowerCase() === filtroEstatus.toLowerCase())
         );
     });
+
+    // ========== ESTA ES LA LÍNEA QUE TE FALTABA ==========
+    filteredTickets = filtrarTicketsPorBusqueda(filteredTickets);
+    // ====================================================
+
+
+
+
 
     // ordenar por fechaCreacion descendente (más recientes primero)
     filteredTickets = filteredTickets.slice().sort((a, b) => {
@@ -125,12 +168,25 @@ const TicketTable = () => {
     const startIndex = (currentPage - 1) * pageSize;
     const pageItems = filteredTickets.slice(startIndex, startIndex + pageSize);
 
+
+
+
+
     return (
         <div className="p-6 ticket-table">
             <h2 className="text-2xl font-semibold text-gray-80 mb-6"> Lista de Tickets</h2>
-
-            {/* Filtros (Bootstrap) */}
             <div className="d-flex flex-wrap gap-3 align-items-center mb-3">
+                <div className="form-group mb-0">
+                    <label className="form-label">Buscador</label>
+                    <input
+                        type="text"
+                        className="form-control"
+                        placeholder="Buscar por folio o nombre..."
+                        value={terminoBusqueda}
+                        onChange={(e) => setTerminoBusqueda(e.target.value)}
+                        style={{ color: 'black', minWidth: '200px' }}
+                    />
+                </div>
                 <div className="form-group mb-0">
                     <label className="form-label">Prioridad</label>
                     <select style={{ color: 'black' }}
@@ -144,6 +200,8 @@ const TicketTable = () => {
                         ))}
                     </select>
                 </div>
+
+
 
                 <div className="form-group mb-0">
                     <label className="form-label">Tipo</label>
@@ -198,6 +256,8 @@ const TicketTable = () => {
                             setFiltroTipo("");
                             setFiltroIngeniero("");
                             setSortBy("");
+                            setTerminoBusqueda("");  // <--- agrega esta línea
+
                         }}
                     >
                         Limpiar
@@ -265,11 +325,10 @@ const TicketTable = () => {
                                                         : ticket.usuario}
                                                 </span>
                                             </div>
-                                        </td>                                    
-                                         <td>{ticket.tipo_ticket}</td>
+                                        </td>
+                                        <td>{ticket.tipo_ticket}</td>
                                         <td>{ticket.fechaCreacion}</td>
 
-                                        {/* 🔥 SOLO ESTO CAMBIÓ */}
                                         <td>
                                             <span className={`badge ${ticket.estatus?.toLowerCase().includes("abierto")
                                                 ? 'bg-success text-white'

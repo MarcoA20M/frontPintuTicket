@@ -41,6 +41,10 @@ const Tracking = () => {
     const [ratingLoading, setRatingLoading] = useState(false);
     const [ratingSuccess, setRatingSuccess] = useState("");
 
+    // Estados para el buscador
+    const [terminoBusqueda, setTerminoBusqueda] = useState('');
+    const [tipoBusquedaDetectado, setTipoBusquedaDetectado] = useState('auto'); // 'folio', 'usuario' o 'auto'
+
     // util: formatea un campo usuario que puede ser string o un objeto { nombre, userName, correo, ... }
     const formatUsuario = (usuario) => {
         if (!usuario) return '';
@@ -52,13 +56,80 @@ const Tracking = () => {
         return String(usuario);
     };
 
+    // Función para detectar automáticamente si el texto es folio o nombre
+    const detectarTipoBusqueda = (texto) => {
+        if (!texto.trim()) return 'auto';
+        
+        // Verificar si el texto es un número (folio)
+        // Puede ser número puro o alfanumérico como TICKET-123
+        const esNumero = /^\d+$/.test(texto.trim());
+        const esFolioFormato = /^[A-Za-z]*[-_]?\d+$/i.test(texto.trim());
+        
+        if (esNumero || esFolioFormato) {
+            return 'folio';
+        }
+        
+        // Si no es número, asumimos que es nombre de usuario
+        return 'usuario';
+    };
+
+    // Función para filtrar tickets por búsqueda automática
+    const filtrarTicketsPorBusqueda = (ticketsList) => {
+        if (!terminoBusqueda.trim()) return ticketsList;
+        
+        const busquedaLower = terminoBusqueda.toLowerCase().trim();
+        const tipoDetectado = detectarTipoBusqueda(terminoBusqueda);
+        
+        return ticketsList.filter(ticket => {
+            // Si detectamos que es folio, buscar por folio
+            if (tipoDetectado === 'folio') {
+                const folio = String(ticket.folio || ticket.id || '').toLowerCase();
+                return folio.includes(busquedaLower);
+            } 
+            // Si detectamos que es usuario, buscar por nombre de usuario
+            else if (tipoDetectado === 'usuario') {
+                const usuario = formatUsuario(ticket.usuario).toLowerCase();
+                return usuario.includes(busquedaLower);
+            }
+            
+            // Fallback: buscar en ambos campos
+            const folio = String(ticket.folio || ticket.id || '').toLowerCase();
+            const usuario = formatUsuario(ticket.usuario).toLowerCase();
+            return folio.includes(busquedaLower) || usuario.includes(busquedaLower);
+        });
+    };
+
+    // Obtener el tipo de búsqueda actual para mostrar en el placeholder
+    const getPlaceholderTexto = () => {
+        if (!terminoBusqueda) {
+            return "Buscar por folio o nombre de usuario...";
+        }
+        const tipo = detectarTipoBusqueda(terminoBusqueda);
+        if (tipo === 'folio') {
+            return `Buscando por folio: ${terminoBusqueda}`;
+        } else if (tipo === 'usuario') {
+            return `Buscando por usuario: ${terminoBusqueda}`;
+        }
+        return "Buscando...";
+    };
+
+    // Obtener el ícono según el tipo de búsqueda
+    const getIconoBusqueda = () => {
+        if (!terminoBusqueda) return "🔍";
+        const tipo = detectarTipoBusqueda(terminoBusqueda);
+        return tipo === 'folio' ? "🎫" : "👤";
+    };
+
     // campos editables
     const [ingenieroEncargado, setIngenieroEncargado] = useState('');
     const [prioridadSeleccionada, setPrioridadSeleccionada] = useState('');
     const [tipoSeleccionado, setTipoSeleccionado] = useState('');
     const [estatusSeleccionado, setEstatusSeleccionado] = useState('Abierto');
     const [filtroEstatus, setFiltroEstatus] = useState('Abierto');
+    const [mostrarFiltro, setMostrarFiltro] = useState(true);
 
+    // Timer para detectar doble click
+    const clickTimer = useRef(null);
 
     // Conectar socket y listeners (run once)
     useEffect(() => {
@@ -199,7 +270,50 @@ const Tracking = () => {
         fetchData();
     }, []);
 
-    const handleSelectTicket = async (t) => {
+    // Función para cargar solo los datos del ticket (sin abrir historial)
+    const handleSingleClick = (t) => {
+        // Limpiar el timer si existe
+        if (clickTimer.current) {
+            clearTimeout(clickTimer.current);
+            clickTimer.current = null;
+        }
+
+        // Configurar un timer para ejecutar la acción de un solo click
+        clickTimer.current = setTimeout(() => {
+            // Solo cargar los datos del ticket, sin abrir historial
+            setTicketActual(t);
+            setIngenieroEncargado(t.ingeniero || '');
+            if (t.id_prioridad) {
+                setPrioridadSeleccionada(String(t.id_prioridad));
+            } else if (t.prioridad) {
+                const matched = (prioridades || []).find(p => (p.nombre || '').toLowerCase() === String(t.prioridad).toLowerCase());
+                if (matched) setPrioridadSeleccionada(String(matched.id_prioridad ?? matched.id));
+                else setPrioridadSeleccionada('');
+            } else {
+                setPrioridadSeleccionada('');
+            }
+            setTipoSeleccionado(t.tipo_ticket || '');
+            setEstatusSeleccionado(t.estatus || 'Abierto');
+
+            // Asegurarse de que el historial esté cerrado
+            if (verHistorial) {
+                setVerHistorial(false);
+                setMostrarFiltro(true);
+            }
+
+            clickTimer.current = null;
+        }, 200); // Esperar 200ms para detectar si viene un segundo click
+    };
+
+    // Función para abrir el historial (doble click)
+    const handleDoubleClick = async (t) => {
+        // Limpiar el timer del single click para que no se ejecute
+        if (clickTimer.current) {
+            clearTimeout(clickTimer.current);
+            clickTimer.current = null;
+        }
+
+        // Primero cargar los datos del ticket
         setTicketActual(t);
         setIngenieroEncargado(t.ingeniero || '');
         if (t.id_prioridad) {
@@ -214,7 +328,9 @@ const Tracking = () => {
         setTipoSeleccionado(t.tipo_ticket || '');
         setEstatusSeleccionado(t.estatus || 'Abierto');
 
+        // Abrir el historial
         setVerHistorial(true);
+        setMostrarFiltro(false);
         setLoadingHistory(true);
 
         try {
@@ -226,6 +342,13 @@ const Tracking = () => {
         } finally {
             setLoadingHistory(false);
         }
+    };
+
+    const handleVolverATickets = () => {
+        setVerHistorial(false);
+        setMostrarFiltro(true);
+        // Limpiar búsqueda al volver
+        setTerminoBusqueda('');
     };
 
     const handleGuardar = async () => {
@@ -343,6 +466,13 @@ const Tracking = () => {
         ?.toLowerCase()
         .replace(" ", "-");
 
+    // Filtrar tickets por búsqueda y estatus
+    const ticketsFiltrados = filtrarTicketsPorBusqueda(tickets);
+    const ticketsFinales = ticketsFiltrados.filter(t => {
+        if (!filtroEstatus) return true;
+        return (t.estatus || '').toLowerCase().trim() === filtroEstatus.toLowerCase().trim();
+    });
+
     return (
         <div className="tracking-root">
             <AlertModal
@@ -356,18 +486,100 @@ const Tracking = () => {
                 <div className="tracking-header">
                     <h2>Asignación de tickets</h2>
 
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                        <select
-                            value={filtroEstatus}
-                            onChange={(e) => setFiltroEstatus(e.target.value)}
-                            style={{ padding: '6px 10px', borderRadius: 6 }}
-                        >
-                            <option value="">Todos</option>
-                            <option value="Abierto">Abierto</option>
-                            <option value="En progreso">En progreso</option>            
-                            <option value="Cerrado">Cerrado</option>
-                        </select>
-                    </div>
+                    {mostrarFiltro && (
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                            {/* Buscador inteligente */}
+                            <div style={{ position: 'relative', flex: 1, minWidth: '300px' }}>
+                                <div style={{ position: 'relative' }}>
+                                    <span style={{
+                                        position: 'absolute',
+                                        left: '10px',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        fontSize: '16px'
+                                    }}>
+                                        {getIconoBusqueda()}
+                                    </span>
+                                    <input
+                                        type="text"
+                                        placeholder={getPlaceholderTexto()}
+                                        value={terminoBusqueda}
+                                        onChange={(e) => setTerminoBusqueda(e.target.value)}
+                                        style={{
+                                            padding: '8px 30px 8px 35px',
+                                            borderRadius: 6,
+                                            border: '1px solid #ccc',
+                                            width: '100%',
+                                            fontSize: '14px'
+                                        }}
+                                        autoComplete="off"
+                                    />
+                                    {terminoBusqueda && (
+                                        <button
+                                            onClick={() => setTerminoBusqueda('')}
+                                            style={{
+                                                position: 'absolute',
+                                                right: '5px',
+                                                top: '50%',
+                                                transform: 'translateY(-50%)',
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                fontSize: '16px',
+                                                color: '#999',
+                                                padding: '0 5px'
+                                            }}
+                                            title="Limpiar búsqueda"
+                                        >
+                                            ✕
+                                        </button>
+                                    )}
+                                </div>
+                                {terminoBusqueda && (
+                                    <div style={{
+                                        fontSize: '11px',
+                                        marginTop: '4px',
+                                        color: detectarTipoBusqueda(terminoBusqueda) === 'folio' ? '#2196F3' : '#4CAF50',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                    }}>
+                                        <span>🔍</span>
+                                        <span>
+                                            Buscando por: <strong>
+                                                {detectarTipoBusqueda(terminoBusqueda) === 'folio' ? 'Folio' : 'Nombre de usuario'}
+                                            </strong>
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Filtro de estatus */}
+                            <select
+                                value={filtroEstatus}
+                                onChange={(e) => setFiltroEstatus(e.target.value)}
+                                style={{ padding: '8px 10px', borderRadius: 6 }}
+                            >
+                                <option value="">Todos los estatus</option>
+                                <option value="Abierto">Abierto</option>
+                                <option value="En progreso">En progreso</option>
+                                <option value="Cerrado">Cerrado</option>
+                            </select>
+
+                            {/* Mostrar resultados de búsqueda */}
+                            {terminoBusqueda && (
+                                <span style={{ 
+                                    fontSize: '13px', 
+                                    padding: '4px 8px',
+                                    background: '#e3f2fd',
+                                    borderRadius: '4px',
+                                    color: '#1976d2'
+                                }}>
+                                    📊 {ticketsFinales.length} resultado(s)
+                                </span>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="tracking-row">
@@ -416,7 +628,7 @@ const Tracking = () => {
 
                         <div className="left-actions">
                             <button onClick={handleGuardar} className="btn btn-success">Guardar</button>
-                            <button onClick={() => { setTicketActual(null); setVerHistorial(false); }} className="btn btn-info">Limpiar</button>
+                            <button onClick={() => { setTicketActual(null); setVerHistorial(false); setMostrarFiltro(true); setTerminoBusqueda(''); }} className="btn btn-info">Limpiar</button>
                         </div>
                     </div>
 
@@ -437,19 +649,15 @@ const Tracking = () => {
 
                                 <div className="messages">
                                     {(() => {
-                                        const queue = (tickets || [])
-                                            .filter(t => {
-                                                if (!filtroEstatus) return true;
-
-                                                return (t.estatus || '')
-                                                    .toLowerCase()
-                                                    .trim() === filtroEstatus.toLowerCase().trim();
-                                            })
-                                            .sort((a, b) => new Date(a.fechaCreacion) - new Date(b.fechaCreacion));
+                                        const queue = ticketsFinales.sort((a, b) => new Date(a.fechaCreacion) - new Date(b.fechaCreacion));
                                         const five = queue.slice(0, 5);
                                         if (five.length === 0) {
                                             return (
-                                                <div className="no-ticket">No hay tickets en cola. Espera a que llegue un ticket nuevo.</div>
+                                                <div className="no-ticket">
+                                                    {terminoBusqueda 
+                                                        ? `❌ No se encontraron tickets que coincidan con "${terminoBusqueda}"` 
+                                                        : "📭 No hay tickets en cola. Espera a que llegue un ticket nuevo."}
+                                                </div>
                                             );
                                         }
                                         return (
@@ -460,7 +668,8 @@ const Tracking = () => {
                                                         <div
                                                             key={t.folio ?? t.id}
                                                             className={`ticket-card ${isSelected ? 'selected' : ''}`}
-                                                            onClick={() => handleSelectTicket(t)}
+                                                            onClick={() => handleSingleClick(t)}
+                                                            onDoubleClick={() => handleDoubleClick(t)}
                                                             style={{
                                                                 padding: 12,
                                                                 borderRadius: 8,
@@ -470,13 +679,23 @@ const Tracking = () => {
                                                             }}
                                                         >
                                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                <div>
+                                                                <div style={{ flex: 1 }}>
                                                                     <div style={{ fontSize: 12, opacity: 0.85 }}>Folio: <strong>{t.folio ?? t.id}</strong></div>
                                                                     <div style={{ marginTop: 6, fontWeight: 700 }}>{t.tipo_ticket ?? t.tipo ?? '—'}</div>
+                                                                    <div style={{ marginTop: 4, fontSize: 11, opacity: 0.7, color: '#ffffff' }}>
+                                                                        📝 {t.descripcion?.length > 60 ? t.descripcion.substring(0, 60) + '...' : (t.descripcion || 'Sin descripción')}
+                                                                    </div>
                                                                 </div>
-                                                                <div style={{ textAlign: 'right' }}>
+                                                                <div style={{ textAlign: 'right', flexShrink: 0 }}>
                                                                     <div style={{ fontSize: 13 }}>{formatUsuario(t.usuario) || 'Solicitante'}</div>
                                                                     <div style={{ fontSize: 12, opacity: 0.8 }}>{t.fechaCreacion ? new Date(t.fechaCreacion).toLocaleString() : ''}</div>
+                                                                    <div
+                                                                        className={`card-status ${String(t.estatus || '')
+                                                                            .toLowerCase()
+                                                                            .replace(" ", "-")}`}
+                                                                    >
+                                                                        {t.estatus || 'Sin estado'}
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -487,29 +706,29 @@ const Tracking = () => {
                                     })()}
                                 </div>
 
-
+                                {/* Mostrar más resultados si hay más de 5 */}
+                                {ticketsFinales.length > 5 && (
+                                    <div style={{ textAlign: 'center', marginTop: '10px', fontSize: '12px', color: '#666' }}>
+                                        Mostrando 5 de {ticketsFinales.length} tickets
+                                    </div>
+                                )}
                             </>
                         ) : (
                             // Vista de historial
                             <div className="historial-view" style={{ padding: '20px', height: '100%', overflow: 'auto' }}>
                                 <button
-                                    onClick={() => setVerHistorial(false)}
-                                    style={{
-                                        marginBottom: '20px',
-                                        padding: '8px 16px',
-                                        background: '#6c757d',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '5px',
-                                        cursor: 'pointer'
-                                    }}
+                                    onClick={handleVolverATickets}
+                                    className="btn-volver-historial"
                                 >
                                     ← Volver a tickets
                                 </button>
 
-                                <h3 style={{ marginBottom: '15px', color: '#333' }}>
-                                    Historial de Ticket: {ticketActual?.folio}
-                                </h3>
+                                <div className="historial-header">
+                                    <h3 style={{ color: '#fff', marginBottom: 10 }}>Historial: {ticketActual?.folio}</h3>
+                                    <div className={`status-indicator ${statusClass}`}>
+                                        ● {ticketActual?.estatus}
+                                    </div>
+                                </div>
 
                                 <div className={`status-indicator ${statusClass}`} style={{ marginBottom: '20px' }}>
                                     ● {ticketActual?.estatus}
@@ -610,7 +829,7 @@ const Tracking = () => {
                                                     setRatingLoading(false);
                                                     setRatingSuccess("¡Gracias por tu opinión!");
                                                     setTimeout(() => {
-                                                        setVerHistorial(false);
+                                                        handleVolverATickets();
                                                     }, 1500);
                                                 }}
                                             >

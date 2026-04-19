@@ -33,6 +33,9 @@ const TrackingEngineer = () => {
 
     const [filtroEstatus, setFiltroEstatus] = useState('En progreso');
 
+    // Estado para el buscador inteligente
+    const [terminoBusqueda, setTerminoBusqueda] = useState('');
+
     const [historial, setHistorial] = useState([]);
     const [verHistorial, setVerHistorial] = useState(false);
     const [loadingHistory, setLoadingHistory] = useState(false);
@@ -83,6 +86,69 @@ const TrackingEngineer = () => {
         return items.length ? items : [{ icon: "ℹ️", text: JSON.stringify(h) }];
     };
 
+    // Función para detectar automáticamente si el texto es folio o nombre
+    const detectarTipoBusqueda = (texto) => {
+        if (!texto.trim()) return 'auto';
+
+        // Verificar si el texto es un número (folio)
+        const esNumero = /^\d+$/.test(texto.trim());
+        const esFolioFormato = /^[A-Za-z]*[-_]?\d+$/i.test(texto.trim());
+
+        if (esNumero || esFolioFormato) {
+            return 'folio';
+        }
+
+        // Si no es número, asumimos que es nombre de usuario
+        return 'usuario';
+    };
+
+    // Función para filtrar tickets por búsqueda inteligente
+    const filtrarTicketsPorBusqueda = (ticketsList) => {
+        if (!terminoBusqueda.trim()) return ticketsList;
+
+        const busquedaLower = terminoBusqueda.toLowerCase().trim();
+        const tipoDetectado = detectarTipoBusqueda(terminoBusqueda);
+
+        return ticketsList.filter(ticket => {
+            // Si detectamos que es folio, buscar por folio
+            if (tipoDetectado === 'folio') {
+                const folio = String(ticket.folio || ticket.id || '').toLowerCase();
+                return folio.includes(busquedaLower);
+            }
+            // Si detectamos que es usuario, buscar por nombre de usuario
+            else if (tipoDetectado === 'usuario') {
+                const usuario = formatUsuario(ticket.usuario).toLowerCase();
+                return usuario.includes(busquedaLower);
+            }
+
+            // Fallback: buscar en ambos campos
+            const folio = String(ticket.folio || ticket.id || '').toLowerCase();
+            const usuario = formatUsuario(ticket.usuario).toLowerCase();
+            return folio.includes(busquedaLower) || usuario.includes(busquedaLower);
+        });
+    };
+
+    // Obtener el placeholder dinámico
+    const getPlaceholderTexto = () => {
+        if (!terminoBusqueda) {
+            return "Buscar por folio o nombre de usuario...";
+        }
+        const tipo = detectarTipoBusqueda(terminoBusqueda);
+        if (tipo === 'folio') {
+            return `Buscando por folio: ${terminoBusqueda}`;
+        } else if (tipo === 'usuario') {
+            return `Buscando por usuario: ${terminoBusqueda}`;
+        }
+        return "Buscando...";
+    };
+
+    // Obtener el ícono según el tipo de búsqueda
+    const getIconoBusqueda = () => {
+        if (!terminoBusqueda) return "🔍";
+        const tipo = detectarTipoBusqueda(terminoBusqueda);
+        return tipo === 'folio' ? "🎫" : "👤";
+    };
+
     const [ingenieroEncargado, setIngenieroEncargado] = useState('');
     const [reassign, setReassign] = useState(false);
     const [prioridadSeleccionada, setPrioridadSeleccionada] = useState('');
@@ -121,15 +187,17 @@ const TrackingEngineer = () => {
         });
     };
 
+    // Aplicar filtros combinados (estatus + búsqueda)
     useEffect(() => {
-        const filtrados = aplicarFiltroEstatus(tickets, filtroEstatus);
-        setTicketsFiltrados(filtrados);
+        const filtradosPorEstatus = aplicarFiltroEstatus(tickets, filtroEstatus);
+        const filtradosPorBusqueda = filtrarTicketsPorBusqueda(filtradosPorEstatus);
+        setTicketsFiltrados(filtradosPorBusqueda);
         setCurrentPage(1);
 
-        if (ticketActual && !filtrados.some(t => t.folio === ticketActual.folio || t.id === ticketActual.id)) {
-            setTicketActual(filtrados.length > 0 ? filtrados[0] : null);
+        if (ticketActual && !filtradosPorBusqueda.some(t => t.folio === ticketActual.folio || t.id === ticketActual.id)) {
+            setTicketActual(filtradosPorBusqueda.length > 0 ? filtradosPorBusqueda[0] : null);
         }
-    }, [tickets, filtroEstatus]);
+    }, [tickets, filtroEstatus, terminoBusqueda]);
 
     useEffect(() => {
         if (!subscribeNotifications) return;
@@ -454,6 +522,100 @@ const TrackingEngineer = () => {
             <div className="tracking-main">
                 <div className="tracking-header">
                     <h2>Mis tickets asignados</h2>
+
+                    {/* Barra de búsqueda inteligente */}
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginTop: '10px' }}>
+                        <div style={{ position: 'relative', flex: 1, minWidth: '300px' }}>
+                            <div style={{ position: 'relative' }}>
+                                <span style={{
+                                    position: 'absolute',
+                                    left: '10px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    fontSize: '16px'
+                                }}>
+                                    {getIconoBusqueda()}
+                                </span>
+                                <input
+                                    type="text"
+                                    placeholder={getPlaceholderTexto()}
+                                    value={terminoBusqueda}
+                                    onChange={(e) => setTerminoBusqueda(e.target.value)}
+                                    style={{
+                                        padding: '8px 30px 8px 35px',
+                                        borderRadius: 6,
+                                        border: '1px solid #ccc',
+                                        width: '100%',
+                                        fontSize: '14px',
+                                        backgroundColor: '#fff',
+                                        color: '#000'
+                                    }}
+                                    autoComplete="off"
+                                />
+                                {terminoBusqueda && (
+                                    <button
+                                        onClick={() => setTerminoBusqueda('')}
+                                        style={{
+                                            position: 'absolute',
+                                            right: '5px',
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            background: 'none',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            fontSize: '16px',
+                                            color: '#999',
+                                            padding: '0 5px'
+                                        }}
+                                        title="Limpiar búsqueda"
+                                    >
+                                        ✕
+                                    </button>
+                                )}
+                            </div>
+                            {terminoBusqueda && (
+                                <div style={{
+                                    fontSize: '11px',
+                                    marginTop: '4px',
+                                    color: detectarTipoBusqueda(terminoBusqueda) === 'folio' ? '#2196F3' : '#4CAF50',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                }}>
+                                    <span>🔍</span>
+                                    <span>
+                                        Buscando por: <strong>
+                                            {detectarTipoBusqueda(terminoBusqueda) === 'folio' ? 'Folio' : 'Nombre de usuario'}
+                                        </strong>
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Filtro de estatus */}
+                        <select
+                            value={filtroEstatus}
+                            onChange={(e) => setFiltroEstatus(e.target.value)}
+                            style={{ padding: '8px 10px', borderRadius: 6 }}
+                        >
+                            <option value="Todos">Todos los estatus</option>
+                            <option value="En progreso">En progreso</option>
+                            <option value="Cerrado">Cerrado</option>
+                        </select>
+
+                        {/* Mostrar resultados de búsqueda */}
+                        {terminoBusqueda && (
+                            <span style={{
+                                fontSize: '13px',
+                                padding: '4px 8px',
+                                background: '#e3f2fd',
+                                borderRadius: '4px',
+                                color: '#1976d2'
+                            }}>
+                                📊 {ticketsFiltrados.length} resultado(s)
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 <div className="tracking-row">
@@ -522,7 +684,7 @@ const TrackingEngineer = () => {
 
                         <div className="left-actions">
                             <button onClick={handleGuardar} className="btn btn-success">Guardar</button>
-                            <button onClick={() => { setTicketActual(null); setVerHistorial(false); }} className="btn btn-info">Limpiar</button>
+                            <button onClick={() => { setTicketActual(null); setVerHistorial(false); setTerminoBusqueda(''); }} className="btn btn-info">Limpiar</button>
                         </div>
                     </div>
 
@@ -556,7 +718,12 @@ const TrackingEngineer = () => {
                                         const start = (currentPage - 1) * perPage;
                                         const pageItems = allSorted.slice(start, start + perPage);
 
-                                        if (!pageItems || pageItems.length === 0) return (<div className="no-ticket">No tienes tickets asignados con el estatus seleccionado.</div>);
+                                        if (!pageItems || pageItems.length === 0) {
+                                            const mensajeSinResultados = terminoBusqueda
+                                                ? `❌ No se encontraron tickets que coincidan con "${terminoBusqueda}"`
+                                                : "📭 No tienes tickets asignados con el estatus seleccionado.";
+                                            return (<div className="no-ticket">{mensajeSinResultados}</div>);
+                                        }
 
                                         return (
                                             <>
@@ -576,7 +743,8 @@ const TrackingEngineer = () => {
                                                                         <div className="ticket-descripcion">{t.descripcion ?? t.description ?? '—'}</div>
                                                                     </div>
                                                                     <div className="ticket-card-right">
-                                                                        <div className="ticket-usuario">{t.usuario ?? t.nombre ?? 'Solicitante'}</div>
+                                                                        <div className="ticket-usuario">{formatUsuario(t.usuario) || 'Solicitante'}</div>
+                                                                        <div className={`card-status ${String(t.estatus || '').toLowerCase().replace(/\s+/g, "-")}`}>{t.estatus || 'Sin estado'}</div>
                                                                         <div className="ticket-fecha">{t.fechaCreacion ? new Date(t.fechaCreacion).toLocaleString() : ''}</div>
                                                                     </div>
                                                                 </div>
@@ -585,24 +753,26 @@ const TrackingEngineer = () => {
                                                     })}
                                                 </div>
 
-                                                <nav aria-label="Paginación tickets" className="pagination-nav">
-                                                    <ul className="pagination justify-content-center">
-                                                        <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
-                                                            <button className="page-link" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} aria-label="Anterior">&laquo;</button>
-                                                        </li>
-                                                        {Array.from({ length: totalPages }).map((_, i) => {
-                                                            const p = i + 1;
-                                                            return (
-                                                                <li key={p} className={`page-item ${p === currentPage ? 'active' : ''}`}>
-                                                                    <button className="page-link" onClick={() => setCurrentPage(p)}>{p}</button>
-                                                                </li>
-                                                            );
-                                                        })}
-                                                        <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
-                                                            <button className="page-link" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} aria-label="Siguiente">&raquo;</button>
-                                                        </li>
-                                                    </ul>
-                                                </nav>
+                                                {totalPages > 1 && (
+                                                    <nav aria-label="Paginación tickets" className="pagination-nav">
+                                                        <ul className="pagination justify-content-center">
+                                                            <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                                                                <button className="page-link" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} aria-label="Anterior">&laquo;</button>
+                                                            </li>
+                                                            {Array.from({ length: totalPages }).map((_, i) => {
+                                                                const p = i + 1;
+                                                                return (
+                                                                    <li key={p} className={`page-item ${p === currentPage ? 'active' : ''}`}>
+                                                                        <button className="page-link" onClick={() => setCurrentPage(p)}>{p}</button>
+                                                                    </li>
+                                                                );
+                                                            })}
+                                                            <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                                                                <button className="page-link" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} aria-label="Siguiente">&raquo;</button>
+                                                            </li>
+                                                        </ul>
+                                                    </nav>
+                                                )}
                                             </>
                                         );
                                     })()}
