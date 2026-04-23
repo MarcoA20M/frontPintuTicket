@@ -579,3 +579,63 @@
 .card-status.cerrado {
   background-color: #dc3545;
 }
+
+
+
+/* Agrega estas clases a tu archivo tracking.css */
+
+.ticket-list-container {
+    max-height: calc(100vh - 250px); /* Ajusta según tus necesidades */
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 5px;
+}
+
+/* Personalizar scrollbar (opcional) */
+.ticket-list-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.ticket-list-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+.ticket-list-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+}
+
+.ticket-list-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* Asegurar que las tarjetas de tickets tengan un ancho consistente */
+.ticket-card {
+    transition: all 0.2s ease;
+}
+
+.ticket-card:hover {
+    transform: translateX(2px);
+}
+
+/* En tracking.css */
+.center-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Asegura que ocupe toda la altura disponible */
+    max-height: calc(100vh - 100px); /* Ajusta según tu header */
+}
+
+.messages {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.ticket-list-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+}

@@ -45,6 +45,10 @@ const Tracking = () => {
     const [terminoBusqueda, setTerminoBusqueda] = useState('');
     const [tipoBusquedaDetectado, setTipoBusquedaDetectado] = useState('auto'); // 'folio', 'usuario' o 'auto'
 
+    // Estados para paginación
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(5); // Mostrar 5 tickets por página
+
     // util: formatea un campo usuario que puede ser string o un objeto { nombre, userName, correo, ... }
     const formatUsuario = (usuario) => {
         if (!usuario) return '';
@@ -59,40 +63,37 @@ const Tracking = () => {
     // Función para detectar automáticamente si el texto es folio o nombre
     const detectarTipoBusqueda = (texto) => {
         if (!texto.trim()) return 'auto';
-        
+
         // Verificar si el texto es un número (folio)
         // Puede ser número puro o alfanumérico como TICKET-123
         const esNumero = /^\d+$/.test(texto.trim());
         const esFolioFormato = /^[A-Za-z]*[-_]?\d+$/i.test(texto.trim());
-        
+
         if (esNumero || esFolioFormato) {
             return 'folio';
         }
-        
+
         // Si no es número, asumimos que es nombre de usuario
         return 'usuario';
     };
 
-    // Función para filtrar tickets por búsqueda automática
+    // Función para filtrar tickets por búsqueda
     const filtrarTicketsPorBusqueda = (ticketsList) => {
         if (!terminoBusqueda.trim()) return ticketsList;
-        
+
         const busquedaLower = terminoBusqueda.toLowerCase().trim();
         const tipoDetectado = detectarTipoBusqueda(terminoBusqueda);
-        
+
         return ticketsList.filter(ticket => {
-            // Si detectamos que es folio, buscar por folio
             if (tipoDetectado === 'folio') {
                 const folio = String(ticket.folio || ticket.id || '').toLowerCase();
                 return folio.includes(busquedaLower);
-            } 
-            // Si detectamos que es usuario, buscar por nombre de usuario
+            }
             else if (tipoDetectado === 'usuario') {
                 const usuario = formatUsuario(ticket.usuario).toLowerCase();
                 return usuario.includes(busquedaLower);
             }
-            
-            // Fallback: buscar en ambos campos
+
             const folio = String(ticket.folio || ticket.id || '').toLowerCase();
             const usuario = formatUsuario(ticket.usuario).toLowerCase();
             return folio.includes(busquedaLower) || usuario.includes(busquedaLower);
@@ -131,25 +132,46 @@ const Tracking = () => {
     // Timer para detectar doble click
     const clickTimer = useRef(null);
 
+    // Filtrar y paginar tickets
+    const ticketsFiltrados = filtrarTicketsPorBusqueda(tickets);
+    const ticketsFinales = ticketsFiltrados.filter(t => {
+        if (!filtroEstatus) return true;
+        return (t.estatus || '').toLowerCase().trim() === filtroEstatus.toLowerCase().trim();
+    });
+
+    // Calcular paginación
+    const totalItems = ticketsFinales.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    const startIndex = (currentPage - 1) * pageSize;
+    const currentTickets = ticketsFinales.slice(startIndex, startIndex + pageSize);
+
+    // Ordenar tickets por fecha (más recientes primero)
+    const ticketsOrdenados = [...currentTickets].sort((a, b) => {
+        const da = a.fechaCreacion ? new Date(a.fechaCreacion) : new Date(0);
+        const db = b.fechaCreacion ? new Date(b.fechaCreacion) : new Date(0);
+        return db - da;
+    });
+
+    // Resetear página cuando cambian los filtros
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filtroEstatus, terminoBusqueda]);
+
     // Conectar socket y listeners (run once)
     useEffect(() => {
-        // conectar al servidor socket (ajusta URL si tu servidor usa otro puerto/namespace)
         socketRef.current = io('http://localhost:8080');
 
         socketRef.current.on('connect', () => {
             console.log('Socket conectado, id=', socketRef.current.id);
         });
 
-        // Evento entrante cuando se crea un ticket (backend debe emitirlo)
         socketRef.current.on('ticketCreated', (newTicket) => {
             console.log('ticketCreated recibido:', newTicket);
             setTicketActual(newTicket);
-            // rellenar selects con los valores actuales (mapear prioridad a id si es necesario)
             setIngenieroEncargado(newTicket.ingeniero || '');
             if (newTicket.id_prioridad) {
                 setPrioridadSeleccionada(String(newTicket.id_prioridad));
             } else if (newTicket.prioridad) {
-                // intentar mapear por nombre usando prioridades ya cargadas
                 const matched = (prioridades || []).find(p => (p.nombre || '').toLowerCase() === String(newTicket.prioridad).toLowerCase());
                 if (matched) setPrioridadSeleccionada(String(matched.id_prioridad ?? matched.id));
                 else setPrioridadSeleccionada('');
@@ -160,14 +182,11 @@ const Tracking = () => {
             setEstatusSeleccionado(newTicket.estatus || 'Abierto');
         });
 
-        // también actualizar cuando backend confirme actualización
         socketRef.current.on('ticketUpdated', (updated) => {
             console.log('ticketUpdated recibido:', updated);
-            // si coincide con el seleccionado, reemplazar y actualizar selects
             setTicketActual(prev => {
                 if (!prev) return prev;
                 if (updated.folio === prev.folio || updated.id === prev.id) {
-                    // actualizar selects también
                     setIngenieroEncargado(updated.ingeniero || '');
                     if (updated.id_prioridad) {
                         setPrioridadSeleccionada(String(updated.id_prioridad));
@@ -232,11 +251,8 @@ const Tracking = () => {
                 setTickets(all || []);
                 setEstatusList(est || []);
 
-                // prioridades: preferir las que trae el endpoint; si no hay, derivar desde tickets
                 if (prio && prio.length > 0) {
-                    // normalizar objetos a forma { id_prioridad, nombre }
                     const normalized = prio.map(p => ({ id_prioridad: p.id_prioridad ?? p.id ?? p.idPrioridad ?? p.id, nombre: p.nombre ?? p.prioridad ?? p.label ?? String(p) }));
-                    // guardar como arreglo de objetos; para el select usaremos strings en value
                     setPrioridades(normalized);
                 } else {
                     const uniqPrio = Array.from(new Set((all || []).map(x => x.prioridad).filter(Boolean)));
@@ -244,14 +260,11 @@ const Tracking = () => {
                     setPrioridades(fallback);
                 }
 
-                // seleccionar un ticket por defecto para mostrar: preferir uno abierto
                 if ((all || []).length > 0) {
                     const firstOpen = (all || []).find(tt => tt.estatus === 'Abierto' || tt.estatus === 'abierto');
                     const chosen = firstOpen || all[0];
                     setTicketActual(chosen);
-                    // rellenar selects con los valores actuales del ticket seleccionado
                     setIngenieroEncargado(chosen.ingeniero || '');
-                    // si el ticket trae id_prioridad usarlo, si solo trae texto intentar mapear al id
                     if (chosen.id_prioridad) {
                         setPrioridadSeleccionada(String(chosen.id_prioridad));
                     } else if (chosen.prioridad) {
@@ -272,15 +285,12 @@ const Tracking = () => {
 
     // Función para cargar solo los datos del ticket (sin abrir historial)
     const handleSingleClick = (t) => {
-        // Limpiar el timer si existe
         if (clickTimer.current) {
             clearTimeout(clickTimer.current);
             clickTimer.current = null;
         }
 
-        // Configurar un timer para ejecutar la acción de un solo click
         clickTimer.current = setTimeout(() => {
-            // Solo cargar los datos del ticket, sin abrir historial
             setTicketActual(t);
             setIngenieroEncargado(t.ingeniero || '');
             if (t.id_prioridad) {
@@ -295,25 +305,22 @@ const Tracking = () => {
             setTipoSeleccionado(t.tipo_ticket || '');
             setEstatusSeleccionado(t.estatus || 'Abierto');
 
-            // Asegurarse de que el historial esté cerrado
             if (verHistorial) {
                 setVerHistorial(false);
                 setMostrarFiltro(true);
             }
 
             clickTimer.current = null;
-        }, 200); // Esperar 200ms para detectar si viene un segundo click
+        }, 200);
     };
 
     // Función para abrir el historial (doble click)
     const handleDoubleClick = async (t) => {
-        // Limpiar el timer del single click para que no se ejecute
         if (clickTimer.current) {
             clearTimeout(clickTimer.current);
             clickTimer.current = null;
         }
 
-        // Primero cargar los datos del ticket
         setTicketActual(t);
         setIngenieroEncargado(t.ingeniero || '');
         if (t.id_prioridad) {
@@ -328,7 +335,6 @@ const Tracking = () => {
         setTipoSeleccionado(t.tipo_ticket || '');
         setEstatusSeleccionado(t.estatus || 'Abierto');
 
-        // Abrir el historial
         setVerHistorial(true);
         setMostrarFiltro(false);
         setLoadingHistory(true);
@@ -347,8 +353,8 @@ const Tracking = () => {
     const handleVolverATickets = () => {
         setVerHistorial(false);
         setMostrarFiltro(true);
-        // Limpiar búsqueda al volver
         setTerminoBusqueda('');
+        setCurrentPage(1); // Resetear página al volver
     };
 
     const handleGuardar = async () => {
@@ -466,12 +472,12 @@ const Tracking = () => {
         ?.toLowerCase()
         .replace(" ", "-");
 
-    // Filtrar tickets por búsqueda y estatus
-    const ticketsFiltrados = filtrarTicketsPorBusqueda(tickets);
-    const ticketsFinales = ticketsFiltrados.filter(t => {
-        if (!filtroEstatus) return true;
-        return (t.estatus || '').toLowerCase().trim() === filtroEstatus.toLowerCase().trim();
-    });
+    // Función para cambiar de página
+    const goToPage = (page) => {
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+        }
+    };
 
     return (
         <div className="tracking-root">
@@ -488,7 +494,6 @@ const Tracking = () => {
 
                     {mostrarFiltro && (
                         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                            {/* Buscador inteligente */}
                             <div style={{ position: 'relative', flex: 1, minWidth: '300px' }}>
                                 <div style={{ position: 'relative' }}>
                                     <span style={{
@@ -554,7 +559,6 @@ const Tracking = () => {
                                 )}
                             </div>
 
-                            {/* Filtro de estatus */}
                             <select
                                 value={filtroEstatus}
                                 onChange={(e) => setFiltroEstatus(e.target.value)}
@@ -563,19 +567,31 @@ const Tracking = () => {
                                 <option value="">Todos los estatus</option>
                                 <option value="Abierto">Abierto</option>
                                 <option value="En progreso">En progreso</option>
-                                <option value="Cerrado">Cerrado</option>
                             </select>
 
-                            {/* Mostrar resultados de búsqueda */}
+                            <select
+                                value={pageSize}
+                                onChange={(e) => {
+                                    setPageSize(Number(e.target.value));
+                                    setCurrentPage(1);
+                                }}
+                                style={{ padding: '8px 10px', borderRadius: 6 }}
+                            >
+                                <option value={5}>Mostrar 5</option>
+                                <option value={10}>Mostrar 10</option>
+                                <option value={15}>Mostrar 15</option>
+                                <option value={20}>Mostrar 20</option>
+                            </select>
+
                             {terminoBusqueda && (
-                                <span style={{ 
-                                    fontSize: '13px', 
+                                <span style={{
+                                    fontSize: '13px',
                                     padding: '4px 8px',
                                     background: '#e3f2fd',
                                     borderRadius: '4px',
                                     color: '#1976d2'
                                 }}>
-                                    📊 {ticketsFinales.length} resultado(s)
+                                    📊 {totalItems} resultado(s)
                                 </span>
                             )}
                         </div>
@@ -628,7 +644,7 @@ const Tracking = () => {
 
                         <div className="left-actions">
                             <button onClick={handleGuardar} className="btn btn-success">Guardar</button>
-                            <button onClick={() => { setTicketActual(null); setVerHistorial(false); setMostrarFiltro(true); setTerminoBusqueda(''); }} className="btn btn-info">Limpiar</button>
+                            <button onClick={() => { setTicketActual(null); setVerHistorial(false); setMostrarFiltro(true); setTerminoBusqueda(''); setCurrentPage(1); }} className="btn btn-info">Limpiar</button>
                         </div>
                     </div>
 
@@ -647,74 +663,230 @@ const Tracking = () => {
                                     </div>
                                 </div>
 
-                                <div className="messages">
-                                    {(() => {
-                                        const queue = ticketsFinales.sort((a, b) => new Date(a.fechaCreacion) - new Date(b.fechaCreacion));
-                                        const five = queue.slice(0, 5);
-                                        if (five.length === 0) {
-                                            return (
-                                                <div className="no-ticket">
-                                                    {terminoBusqueda 
-                                                        ? `❌ No se encontraron tickets que coincidan con "${terminoBusqueda}"` 
-                                                        : "📭 No hay tickets en cola. Espera a que llegue un ticket nuevo."}
-                                                </div>
-                                            );
-                                        }
-                                        return (
-                                            <div className="ticket-cards" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                                {five.map((t) => {
-                                                    const isSelected = ticketActual && (ticketActual.folio === t.folio || ticketActual.id === t.id);
-                                                    return (
-                                                        <div
-                                                            key={t.folio ?? t.id}
-                                                            className={`ticket-card ${isSelected ? 'selected' : ''}`}
-                                                            onClick={() => handleSingleClick(t)}
-                                                            onDoubleClick={() => handleDoubleClick(t)}
+                              <div className="messages">
+    {(() => {
+        if (ticketsOrdenados.length === 0) {
+            return (
+                <div className="no-ticket">
+                    {terminoBusqueda
+                        ? `❌ No se encontraron tickets que coincidan con "${terminoBusqueda}"`
+                        : "📭 No hay tickets en cola. Espera a que llegue un ticket nuevo."}
+                </div>
+            );
+        }
+        return (
+            <div className="ticket-list-container">
+                <div className="ticket-cards" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {ticketsOrdenados.map((t) => {
+                        const isSelected = ticketActual && (ticketActual.folio === t.folio || ticketActual.id === t.id);
+                        return (
+                            <div
+                                key={t.folio ?? t.id}
+                                className={`ticket-card ${isSelected ? 'selected' : ''}`}
+                                onClick={() => handleSingleClick(t)}
+                                onDoubleClick={() => handleDoubleClick(t)}
+                                style={{
+                                    padding: 12,
+                                    borderRadius: 8,
+                                    width: '100%',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                                }}
+                            >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: 12, opacity: 0.85 }}>Folio: <strong>{t.folio ?? t.id}</strong></div>
+                                        <div style={{ marginTop: 6, fontWeight: 700 }}>{t.tipo_ticket ?? t.tipo ?? '—'}</div>
+                                        <div style={{ marginTop: 4, fontSize: 11, opacity: 0.7, color: '#ffffff' }}>
+                                            📝 {t.descripcion?.length > 60 ? t.descripcion.substring(0, 60) + '...' : (t.descripcion || 'Sin descripción')}
+                                        </div>
+                                    </div>
+                                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                        <div style={{ fontSize: 13 }}>{formatUsuario(t.usuario) || 'Solicitante'}</div>
+                                        <div style={{ fontSize: 12, opacity: 0.8 }}>{t.fechaCreacion ? new Date(t.fechaCreacion).toLocaleString() : ''}</div>
+                                        <div
+                                            className={`card-status ${String(t.estatus || '')
+                                                .toLowerCase()
+                                                .replace(" ", "-")}`}
+                                        >
+                                            {t.estatus || 'Sin estado'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    })()}
+</div>
+
+                                {/* Menú de paginación inferior - Versión Simple */}
+                                {totalItems > 0 && (
+                                    <div style={{
+                                        marginTop: '24px',
+                                        paddingTop: '20px',
+                                        borderTop: '1px solid rgba(255,255,255,0.06)',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        flexWrap: 'wrap',
+                                        gap: '16px',
+                                        fontFamily: "'Plus Jakarta Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto"
+                                    }}>
+                                        <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>
+                                            Mostrando {startIndex + 1} - {Math.min(startIndex + pageSize, totalItems)} de {totalItems} tickets
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                            <button
+                                                onClick={() => goToPage(1)}
+                                                disabled={currentPage === 1}
+                                                style={{
+                                                    padding: '6px 10px',
+                                                    borderRadius: '6px',
+                                                    border: '1px solid rgba(255,255,255,0.06)',
+                                                    background: 'rgba(255,255,255,0.02)',
+                                                    color: currentPage === 1 ? 'rgba(255,255,255,0.3)' : '#fff',
+                                                    cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                                                    fontSize: '0.8rem',
+                                                    transition: 'all 0.12s'
+                                                }}
+                                            >
+                                                «
+                                            </button>
+
+                                            <button
+                                                onClick={() => goToPage(currentPage - 1)}
+                                                disabled={currentPage === 1}
+                                                style={{
+                                                    padding: '6px 10px',
+                                                    borderRadius: '6px',
+                                                    border: '1px solid rgba(255,255,255,0.06)',
+                                                    background: 'rgba(255,255,255,0.02)',
+                                                    color: currentPage === 1 ? 'rgba(255,255,255,0.3)' : '#fff',
+                                                    cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                                                    fontSize: '0.8rem',
+                                                    transition: 'all 0.12s'
+                                                }}
+                                            >
+                                                ‹
+                                            </button>
+
+                                            {(() => {
+                                                const pages = [];
+                                                const maxVisible = 5;
+                                                let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+                                                let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+
+                                                if (endPage - startPage + 1 < maxVisible) {
+                                                    startPage = Math.max(1, endPage - maxVisible + 1);
+                                                }
+
+                                                if (startPage > 1) {
+                                                    pages.push(
+                                                        <span key="start-dots" style={{ padding: '6px 4px', color: 'rgba(255,255,255,0.4)' }}>...</span>
+                                                    );
+                                                }
+
+                                                for (let i = startPage; i <= endPage; i++) {
+                                                    pages.push(
+                                                        <button
+                                                            key={i}
+                                                            onClick={() => goToPage(i)}
                                                             style={{
-                                                                padding: 12,
-                                                                borderRadius: 8,
-                                                                width: '100%',
+                                                                padding: '6px 12px',
+                                                                borderRadius: '6px',
+                                                                border: '1px solid rgba(255,255,255,0.06)',
+                                                                background: i === currentPage
+                                                                    ? 'rgba(22, 163, 74, 0.15)'
+                                                                    : 'rgba(255,255,255,0.02)',
+                                                                color: i === currentPage ? '#16a34a' : '#fff',
                                                                 cursor: 'pointer',
-                                                                boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                                                                fontSize: '0.85rem',
+                                                                fontWeight: i === currentPage ? '600' : '400',
+                                                                transition: 'all 0.12s'
                                                             }}
                                                         >
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                <div style={{ flex: 1 }}>
-                                                                    <div style={{ fontSize: 12, opacity: 0.85 }}>Folio: <strong>{t.folio ?? t.id}</strong></div>
-                                                                    <div style={{ marginTop: 6, fontWeight: 700 }}>{t.tipo_ticket ?? t.tipo ?? '—'}</div>
-                                                                    <div style={{ marginTop: 4, fontSize: 11, opacity: 0.7, color: '#ffffff' }}>
-                                                                        📝 {t.descripcion?.length > 60 ? t.descripcion.substring(0, 60) + '...' : (t.descripcion || 'Sin descripción')}
-                                                                    </div>
-                                                                </div>
-                                                                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                                                    <div style={{ fontSize: 13 }}>{formatUsuario(t.usuario) || 'Solicitante'}</div>
-                                                                    <div style={{ fontSize: 12, opacity: 0.8 }}>{t.fechaCreacion ? new Date(t.fechaCreacion).toLocaleString() : ''}</div>
-                                                                    <div
-                                                                        className={`card-status ${String(t.estatus || '')
-                                                                            .toLowerCase()
-                                                                            .replace(" ", "-")}`}
-                                                                    >
-                                                                        {t.estatus || 'Sin estado'}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
+                                                            {i}
+                                                        </button>
                                                     );
-                                                })}
-                                            </div>
-                                        );
-                                    })()}
-                                </div>
+                                                }
 
-                                {/* Mostrar más resultados si hay más de 5 */}
-                                {ticketsFinales.length > 5 && (
-                                    <div style={{ textAlign: 'center', marginTop: '10px', fontSize: '12px', color: '#666' }}>
-                                        Mostrando 5 de {ticketsFinales.length} tickets
+                                                if (endPage < totalPages) {
+                                                    pages.push(
+                                                        <span key="end-dots" style={{ padding: '6px 4px', color: 'rgba(255,255,255,0.4)' }}>...</span>
+                                                    );
+                                                }
+
+                                                return pages;
+                                            })()}
+
+                                            <button
+                                                onClick={() => goToPage(currentPage + 1)}
+                                                disabled={currentPage === totalPages}
+                                                style={{
+                                                    padding: '6px 10px',
+                                                    borderRadius: '6px',
+                                                    border: '1px solid rgba(255,255,255,0.06)',
+                                                    background: 'rgba(255,255,255,0.02)',
+                                                    color: currentPage === totalPages ? 'rgba(255,255,255,0.3)' : '#fff',
+                                                    cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                                                    fontSize: '0.8rem',
+                                                    transition: 'all 0.12s'
+                                                }}
+                                            >
+                                                ›
+                                            </button>
+
+                                            <button
+                                                onClick={() => goToPage(totalPages)}
+                                                disabled={currentPage === totalPages}
+                                                style={{
+                                                    padding: '6px 10px',
+                                                    borderRadius: '6px',
+                                                    border: '1px solid rgba(255,255,255,0.06)',
+                                                    background: 'rgba(255,255,255,0.02)',
+                                                    color: currentPage === totalPages ? 'rgba(255,255,255,0.3)' : '#fff',
+                                                    cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                                                    fontSize: '0.8rem',
+                                                    transition: 'all 0.12s'
+                                                }}
+                                            >
+                                                »
+                                            </button>
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>Ir a:</span>
+                                            <input
+                                                type="number"
+                                                min={1}
+                                                max={totalPages}
+                                                value={currentPage}
+                                                onChange={(e) => {
+                                                    const page = Number(e.target.value);
+                                                    if (page >= 1 && page <= totalPages) {
+                                                        goToPage(page);
+                                                    }
+                                                }}
+                                                style={{
+                                                    width: '55px',
+                                                    padding: '5px 8px',
+                                                    borderRadius: '6px',
+                                                    border: '1px solid rgba(255,255,255,0.1)',
+                                                    background: 'rgba(0,0,0,0.3)',
+                                                    color: '#fff',
+                                                    textAlign: 'center',
+                                                    fontSize: '0.85rem'
+                                                }}
+                                            />
+                                        </div>
                                     </div>
                                 )}
                             </>
                         ) : (
-                            // Vista de historial
                             <div className="historial-view" style={{ padding: '20px', height: '100%', overflow: 'auto' }}>
                                 <button
                                     onClick={handleVolverATickets}
@@ -775,7 +947,6 @@ const Tracking = () => {
                                     </div>
                                 )}
 
-                                {/* Sección de calificación si el ticket está cerrado */}
                                 {ticketActual?.estatus?.toLowerCase() === 'cerrado' && !ticketActual?.calificacion && (
                                     <div style={{ marginTop: '30px', padding: '20px', background: '#f8f9fa', borderRadius: '8px' }}>
                                         <h4 style={{ marginBottom: '15px' }}>Califica la atención</h4>

@@ -21,7 +21,11 @@
   backdrop-filter: blur(10px);
 }
 
-
+/* 🟢 ABIERTO */
+.detalle-header.proceso {
+  background: linear-gradient(135deg, rgba(46,204,113,0.15), rgba(46,204,113,0.05));
+  border-left: 6px solid #2ecc71;
+}
 
 /* 🟢 ABIERTO */
 .detalle-header.abierto {
@@ -127,7 +131,7 @@
   border-left: 5px solid #ff4d6d;
 }
 
-.ticket-card.proceso {
+.ticket-card.progreso {
   border-left: 5px solid #ffc107;
 }
 
@@ -177,25 +181,27 @@
 /* 🔴 ABIERTO */
 .badge.abierto {
   background: rgba(255,77,109,0.15);
-  color: #ff4d6d;
-  border: 1px solid #ff4d6d;
+  color: #2ecc71;
+  border: 1px solid #2ecc71;
   box-shadow: 0 0 8px rgba(255,77,109,0.4);
 }
 
 /* 🟢 CERRADO */
 .badge.cerrado {
   background: rgba(46,204,113,0.15);
-  color: #2ecc71;
-  border: 1px solid #2ecc71;
+  color: #ff4d6d;
+  border: 1px solid #bb1030;
 }
 
-/* 🟡 PROCESO (FIX UX 🔥) */
+
+/* 🟢 CERRADO */
 .badge.proceso {
-  background: rgba(255,193,7,0.15);
+  background: rgba(46,204,113,0.15);
   color: #ffc107;
   border: 1px solid #ffc107;
-  box-shadow: 0 0 8px rgba(255,193,7,0.4);
 }
+
+
 
 /* ===== FOOTER ===== */
 .ticket-footer {
