@@ -7,6 +7,7 @@ import { getAllPrioridad } from '../services/prioridad';
 import { getTicketsByIngenieroId, getTicketById, updateTicket, riteTicket } from '../services/ticketService';
 import { getHistorialByFolio } from '../services/historial';
 import { useNotifications } from '../contexts/NotificationContext';
+import { connect as stompConnect, sendMessage as stompSendMessage } from '../services/stompService';
 import AlertModal from './Alerts/AlertModal';
 import '../components/Styles/tracking.css';
 import './Styles/TicketDetailChatGlass.css';
@@ -351,6 +352,63 @@ const TrackingEngineer = () => {
 
             const histResp = await getHistorialByFolio(ticketActual.folio);
             setHistorial(Array.isArray(histResp) ? histResp : [histResp]);
+
+            // Emitir evento STOMP para que el usuario reciba el mensaje en tiempo real
+            try {
+                await stompConnect();
+                await stompSendMessage('/app/assignTicket', {
+                    folio: updated.folio,
+                    ingeniero: updated.ingeniero,
+                    estatus: updated.estatus,
+                    event: 'ticket.updated',
+                    notificationAudience: 'ingeniero',
+                    message: `El ticket ${updated.folio} fue actualizado.`,
+                });
+
+                let fullTicket = null;
+                try {
+                    fullTicket = await getTicketById(updated.folio);
+                } catch (e) {
+                    console.warn('TrackingEngineer: no se pudo obtener ticket completo para notificar al usuario', e);
+                }
+
+                const notifyPayload = {
+                    folio: updated.folio,
+                    ingeniero: updated.ingeniero,
+                    estatus: updated.estatus,
+                    event: 'ticket.messageFromEngineer',
+                    notificationAudience: 'usuario',
+                    message: `Ticket ${updated.folio}: nuevo mensaje del ingeniero.`,
+                    id_prioridad: updated.id_prioridad ?? payload.id_prioridad,
+                    usuario_nombre:
+                        formatUsuario(fullTicket?.usuario ?? fullTicket?.nombre ?? fullTicket?.usuario_nombre) ||
+                        formatUsuario(ticketActual?.usuario) ||
+                        formatUsuario(updated?.usuario) ||
+                        undefined,
+                    usuario_id:
+                        fullTicket?.id_usuario ??
+                        fullTicket?.idUsuario ??
+                        fullTicket?.usuario_id ??
+                        ticketActual?.id_usuario ??
+                        ticketActual?.idUsuario ??
+                        updated?.id_usuario ??
+                        updated?.idUsuario ??
+                        undefined,
+                };
+
+                if (notifyPayload.usuario_id) {
+                    notifyPayload.userId = notifyPayload.usuario_id;
+                    notifyPayload.usuarioId = notifyPayload.usuario_id;
+                }
+
+                await stompSendMessage('/app/ticketAssigned', notifyPayload);
+
+                addNotification(String(updated.folio), `El ticket ${updated.folio} fue actualizado.`, {
+                    origin: 'local',
+                });
+            } catch (e) {
+                console.debug('TrackingEngineer: STOMP notify falló (no crítico)', e);
+            }
 
             setTimeout(scrollToBottom, 100);
         } catch (err) {

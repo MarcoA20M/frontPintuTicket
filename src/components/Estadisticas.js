@@ -153,16 +153,23 @@ const Estadisticas = () => {
   // =========================
   const generarReporteGeneral = async () => {
     try {
-      const response = await fetch("http://10.12.0.10:5001", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          tickets: tickets,
-          estado: "general",
-        }),
-      });
+      const response = await fetch(
+        "http://10.12.0.10:5001/generate-excel",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            tickets: tickets,
+            estado: "general",
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Error generando reporte");
+      }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);

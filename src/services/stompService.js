@@ -6,6 +6,14 @@ let client = null;
 let connected = false;
 let lastAuthHeader = null;
 
+const API_URL = process.env.REACT_APP_API_URL?.replace(/\/+$/, '');
+
+if (!API_URL) {
+    throw new Error('Error al conectarse a la API');
+}
+
+const STOMP_URL = process.env.REACT_APP_STOMP_URL?.replace(/\/+$/, '') || `${API_URL}/ws`;
+
 function buildConnectHeaders({ token, connectHeaders } = {}) {
     const headers = { ...(connectHeaders && typeof connectHeaders === 'object' ? connectHeaders : {}) };
     const rawToken = typeof token === 'string' ? token.trim() : '';
@@ -20,7 +28,7 @@ function buildConnectHeaders({ token, connectHeaders } = {}) {
     return headers;
 }
 
-export const connect = ({ url = 'http://localhost:8080/', token, connectHeaders, onConnect } = {}) => {
+export const connect = ({ url = STOMP_URL, token, connectHeaders, onConnect } = {}) => {
     const nextHeaders = buildConnectHeaders({ token, connectHeaders });
     const nextAuthHeader = nextHeaders.Authorization || null;
 
@@ -36,6 +44,14 @@ export const connect = ({ url = 'http://localhost:8080/', token, connectHeaders,
 
     return new Promise((resolve, reject) => {
         try {
+            let settled = false;
+            const settleReject = (error) => {
+                if (settled) return;
+                settled = true;
+                connected = false;
+                reject(error);
+            };
+
             client = new Client({
                 // Forzar transporte 'websocket' ayuda a evitar preflight/XHR '/info' con CORS durante pruebas
                 webSocketFactory: () => new SockJS(url, null, { transports: ['websocket'] }),
@@ -47,6 +63,7 @@ export const connect = ({ url = 'http://localhost:8080/', token, connectHeaders,
             });
 
             client.onConnect = (frame) => {
+                settled = true;
                 connected = true;
                 lastAuthHeader = nextAuthHeader;
                 if (onConnect) onConnect(frame);
@@ -55,6 +72,19 @@ export const connect = ({ url = 'http://localhost:8080/', token, connectHeaders,
 
             client.onStompError = (frame) => {
                 console.error('STOMP error', frame);
+                settleReject(new Error(frame?.headers?.message || 'STOMP broker error'));
+            };
+
+            client.onWebSocketError = (event) => {
+                console.error('STOMP websocket error', event);
+                settleReject(new Error('STOMP websocket error'));
+            };
+
+            client.onWebSocketClose = (event) => {
+                connected = false;
+                if (!settled) {
+                    settleReject(new Error(`STOMP websocket closed (${event?.code ?? 'unknown'})`));
+                }
             };
 
             client.activate();
@@ -66,6 +96,9 @@ export const connect = ({ url = 'http://localhost:8080/', token, connectHeaders,
 
 export const subscribe = async (destination, handler) => {
     if (!client || !connected) await connect();
+    if (!client || !connected) {
+        throw new Error('No hay conexion STOMP activa');
+    }
     return client.subscribe(destination, (message) => {
         let body = null;
         try {

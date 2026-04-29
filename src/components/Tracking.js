@@ -15,6 +15,8 @@ import { getHistorialByFolio } from '../services/historial';
 import '../components/Styles/tracking.css';
 import './Styles/TicketDetailChatGlass.css';
 
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL?.replace(/\/+$/, '');
+
 const Tracking = () => {
     const socketRef = useRef(null);
     const { addNotification, subscribeNotifications, subscribeTicketTopic } = useNotifications();
@@ -159,7 +161,15 @@ const Tracking = () => {
 
     // Conectar socket y listeners (run once)
     useEffect(() => {
-        socketRef.current = io('http://localhost:8080');
+        // conectar al servidor socket (ajusta URL si tu servidor usa otro puerto/namespace)
+        if (!SOCKET_URL) {
+            console.warn('Tracking: REACT_APP_SOCKET_URL no esta definida; se omite conexion Socket.IO.');
+            return undefined;
+        }
+
+        socketRef.current = io(SOCKET_URL, {
+            transports: ['websocket', 'polling'],
+        });
 
         socketRef.current.on('connect', () => {
             console.log('Socket conectado, id=', socketRef.current.id);
@@ -374,9 +384,16 @@ const Tracking = () => {
             const updated = await updateTicket(payload);
 
             try {
-                await stompConnect({ url: 'http://localhost:8080/ws' });
+                await stompConnect();
 
-                await sendMessage('/app/assignTicket', { folio: updated.folio, ingeniero: updated.ingeniero });
+                await sendMessage('/app/assignTicket', {
+                    folio: updated.folio,
+                    ingeniero: updated.ingeniero,
+                    estatus: updated.estatus,
+                    event: 'ticket.updated',
+                    notificationAudience: 'ingeniero',
+                    message: `El ticket ${updated.folio} fue actualizado.`,
+                });
 
                 let fullTicket = null;
                 try {
@@ -390,6 +407,9 @@ const Tracking = () => {
                     folio: updated.folio,
                     ingeniero: updated.ingeniero,
                     estatus: updated.estatus,
+                    event: 'ticket.assigned',
+                    notificationAudience: 'usuario',
+                    message: `Ticket ${updated.folio} asignado${updated.ingeniero ? ` a ${updated.ingeniero}` : ''}.`,
                     id_prioridad: updated.id_prioridad ?? payload.id_prioridad,
                     usuario_nombre: formatUsuario(fullTicket?.usuario ?? fullTicket?.nombre ?? fullTicket?.usuario_nombre) || formatUsuario(ticketActual?.usuario) || formatUsuario(updated.usuario) || undefined,
                     usuario_id: fullTicket?.id_usuario ?? fullTicket?.idUsuario ?? fullTicket?.usuario_id ?? ticketActual?.id_usuario ?? ticketActual?.idUsuario ?? updated.id_usuario ?? updated.idUsuario ?? undefined,

@@ -1,5 +1,11 @@
 // src/services/usuarioService.js
-const BASE_URL = "http://localhost:8080/usuario";
+const API_URL = process.env.REACT_APP_API_URL?.replace(/\/+$/, '');
+
+if (!API_URL) {
+    throw new Error('Error al conectarse a la API');
+}
+
+const BASE_URL = `${API_URL}/usuario`;
 
 // Obtener todos los usuarios
 export const getAllUsuarios = async () => {

@@ -1,5 +1,11 @@
 // Servicio para obtener ingenieros
-const INGENIERO_BASE_URL = "http://localhost:8080/ingenieros";
+const API_URL = process.env.REACT_APP_API_URL?.replace(/\/+$/, '');
+
+if (!API_URL) {
+    throw new Error('Error al conectarse a la API');
+}
+
+const INGENIERO_BASE_URL = `${API_URL}/ingenieros`;
 
 export const getAllIngenieros = async () => {
     try {

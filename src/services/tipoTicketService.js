@@ -1,5 +1,11 @@
 // Servicio para manejar los tipos de ticket
-const BASE_URL = "http://localhost:8080/tipoTicket";
+const API_URL = process.env.REACT_APP_API_URL?.replace(/\/+$/, '');
+
+if (!API_URL) {
+    throw new Error('Error al conectarse a la API');
+}
+
+const BASE_URL = `${API_URL}/tipoTicket`;
 
 export const getAllTipoTickets = async () => {
     try {

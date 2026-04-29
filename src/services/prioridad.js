@@ -1,5 +1,11 @@
 // Servicio para manejar prioridades
-const PRIORIDAD_BASE_URL = "http://localhost:8080/prioridades";
+const API_URL = process.env.REACT_APP_API_URL?.replace(/\/+$/, '');
+
+if (!API_URL) {
+    throw new Error('Error al conectarse a la API');
+}
+
+const PRIORIDAD_BASE_URL = `${API_URL}/prioridades`;
 
 export const getAllPrioridad = async () => {
     try {

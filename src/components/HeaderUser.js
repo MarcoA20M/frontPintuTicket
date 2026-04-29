@@ -7,11 +7,17 @@ import { getUsuarioById } from '../services/usuarioService';
 
 const HeaderUser = () => {
     const [showNotifications, setShowNotifications] = useState(false);
-    const { notifications } = useNotifications();
+    const { notifications = [], readNotifications = [], markAllAsRead } = useNotifications();
     const navigate = useNavigate();
+    const visibleNotifications = [...notifications, ...readNotifications]
+        .sort((left, right) => (right.createdAt || 0) - (left.createdAt || 0));
 
     const handleToggleNotifications = () => {
-        setShowNotifications(!showNotifications);
+        const next = !showNotifications;
+        if (next && notifications.length > 0) {
+            markAllAsRead();
+        }
+        setShowNotifications(next);
     };
 
     const handleShowPerfil = async () => {
@@ -80,15 +86,17 @@ const HeaderUser = () => {
                     <div className="notifications-dropdown">
                         <h3>Cambios en tus Tickets</h3>
                         <ul>
-                            {notifications.length > 0 ? (
-                                notifications.map((notif) => (
+                            {visibleNotifications.length > 0 ? (
+                                visibleNotifications.map((notif) => (
                                     <li key={notif.id} className="notification-item">
                                         <p className="notification-message">
-                                            <strong>Ticket {notif.ticketId}:</strong>{' '}
-                                            {notif.message}
+                                            {notif.ticketId && notif.ticketId !== 'N/A' ? (
+                                                <strong>Ticket {notif.ticketId}: </strong>
+                                            ) : null}
+                                            <span>{notif.message}</span>
                                         </p>
                                         <span className="notification-date">
-                                            {notif.date}
+                                            {notif.date}{notif.time ? ` ${notif.time}` : ''}
                                         </span>
                                     </li>
                                 ))

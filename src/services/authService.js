@@ -35,7 +35,12 @@ function checkMasterUser(username, password) {
   }
   return null;
 }
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+const API_URL = process.env.REACT_APP_API_URL?.replace(/\/+$/, '');
+
+if (!API_URL) {
+  throw new Error('Error al conectarse a la API');
+}
+
 const BASE_URL = `${API_URL}/api/auth`;
 
 export const login = async (username, password) => {

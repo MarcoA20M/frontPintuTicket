@@ -52,6 +52,51 @@ const TicketDetailChat = () => {
     return () => { mounted = false; };
   }, [folio]);
 
+  // Suscripción en tiempo real: re-fetch cuando llega una notificación de este ticket
+  useEffect(() => {
+    if (!folio) return;
+
+    let mounted = true;
+
+    const refresh = async () => {
+      try {
+        const [ticketResp, histResp] = await Promise.all([
+          getTicketById(folio).catch(() => null),
+          getHistorialByFolio(folio).catch(() => null),
+        ]);
+        if (!mounted) return;
+        if (ticketResp) {
+          setTicket(ticketResp);
+          if (String(ticketResp.estatus || "").toLowerCase() === "cerrado" && !ticketResp.calificacion) {
+            setShowModal(true);
+          }
+        }
+        if (histResp) setHistorial(Array.isArray(histResp) ? histResp : [histResp]);
+      } catch (e) {
+        console.debug("TicketDetailChat: error en refresh", e);
+      }
+    };
+
+    // Escuchar notificaciones generales del contexto y filtrar las de este folio
+    const unsubNotif = subscribeNotifications((notif) => {
+      if (String(notif.ticketId) === String(folio)) {
+        refresh();
+      }
+    });
+
+    // Suscribirse al topic específico del ticket en STOMP
+    let unsubTopic = () => {};
+    subscribeTicketTopic(folio).then((cleanup) => {
+      if (mounted && typeof cleanup === "function") unsubTopic = cleanup;
+    });
+
+    return () => {
+      mounted = false;
+      unsubNotif();
+      unsubTopic();
+    };
+  }, [folio, subscribeNotifications, subscribeTicketTopic]);
+
   if (loading) return <div className="ticket-detail-chat-container"><p>Cargando ticket...</p></div>;
   if (!ticket) return <div className="ticket-detail-chat-container"><p>Ticket no encontrado</p></div>;
 

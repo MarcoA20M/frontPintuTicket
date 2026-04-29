@@ -1,4 +1,10 @@
-const BASE_URL = "http://localhost:8080/tickets";
+const API_URL = process.env.REACT_APP_API_URL?.replace(/\/+$/, '');
+
+if (!API_URL) {
+    throw new Error('Error al conectarse a la API');
+}
+
+const BASE_URL = `${API_URL}/tickets`;
 
 // Alternativa: crear ticket usando endpoint /tickets/createTicket
 export const createTicketCreate = async (ticketData) => {
