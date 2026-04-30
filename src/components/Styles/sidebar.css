@@ -105,6 +105,7 @@
     list-style: none;
     padding: 0.3rem 0.8rem;
     margin: 0;
+    color: white;
 }
 
 .sidebar-nav-link {
@@ -117,6 +118,7 @@
     border-radius: 10px;
     transition: all 0.2s ease;
     gap: 10px;
+    color: white;
 }
 
 .sidebar-nav-link:hover {
@@ -145,6 +147,7 @@
     overflow-y: auto;
     flex: 1;
     padding: 0 0.8rem 1rem;
+    color: rgba(255, 255, 255, 0.8);
 }
 
 .sidebar-history-item {
@@ -163,6 +166,7 @@
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    color: white;
 }
 
 .sidebar-history-link::before {

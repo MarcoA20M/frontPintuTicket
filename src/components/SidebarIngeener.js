@@ -42,6 +42,45 @@ const Sidebar = () => {
         return descripcion.length > maxLength ? descripcion.substring(0, maxLength) + '...' : descripcion;
     };
 
+    const [nombreUsuario, setNombreUsuario] = useState("");
+
+    useEffect(() => {
+        const fetchSidebarData = async () => {
+          try {
+            // 1. EXTRAER LÓGICA DE ID (Igual que en TrackingUser)
+            const usuarioGuardado = localStorage.getItem('usuario');
+            if (!usuarioGuardado) return;
+    
+            const usuarioObj = JSON.parse(usuarioGuardado);
+            
+            // Buscamos el ID en todas las posibles llaves
+            const userId = usuarioObj.id || usuarioObj.userId || usuarioObj.idUsuario || usuarioObj.id_usuario;
+            // Buscamos el nombre
+            const userName = usuarioObj.nombre || usuarioObj.userName || usuarioObj.user || 'Usuario';
+            
+            setNombreUsuario(userName);
+    
+            if (userId) {
+              // 2. OBTENER TICKETS (Mismo servicio que TrackingUser)
+              const data = await getTicketsByUsuarioId(userId);
+              
+              // Ordenar: más recientes primero y limitar a los últimos 10 para no saturar el sidebar
+              const sortedTickets = Array.isArray(data) 
+                ? [...data].sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion)).slice(0, 10)
+                : [];
+                
+              setTickets(sortedTickets);
+            }
+          } catch (error) {
+            console.error("Error cargando datos en Sidebar:", error);
+          }
+        };
+    
+        fetchSidebarData();
+      }, []); 
+
+
+
     return (
         <>
             {/* Botón hamburguesa */}
@@ -63,7 +102,10 @@ const Sidebar = () => {
                     <div className="sidebar-header">
                         <div className="logo">
                             <img src={logo} alt="Logo PintuMex" />
-                            <span>Ingeniero</span>
+                        </div>
+                        <div className="user-info-display">
+                            <small>Sesión de</small>
+                            <strong>{nombreUsuario}</strong>
                         </div>
                     </div>
                     <nav>

@@ -1,14 +1,64 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import './Styles/engineer.css';
 import { getAllTickets,getTicketsByIngenieroId } from '../services/ticketService';
+import * as echarts from 'echarts';
+
+const monthLabels = [
+    'enero',
+    'febrero',
+    'marzo',
+    'abril',
+    'mayo',
+    'junio',
+    'julio',
+    'agosto',
+    'sep',
+    'octubre',
+    'nov',
+    'dic',
+];
+
+const getTicketDate = (ticket) => {
+    const rawDate =
+        ticket?.fechaCreacion ??
+        ticket?.fecha_creacion ??
+        ticket?.fecha ??
+        ticket?.createdAt ??
+        ticket?.created_at ??
+        ticket?.fechaAlta;
+
+    if (!rawDate) return null;
+    const date = new Date(rawDate);
+    return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getSixMonthBuckets = () => {
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, idx) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (5 - idx), 1);
+        return {
+            key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+            label: monthLabels[d.getMonth()],
+            year: d.getFullYear(),
+            month: d.getMonth(),
+        };
+    });
+};
 
 
 const Engineer = () => {
     const [usuario, setUsuario] = useState(null);
+    const [summaryViewMode, setSummaryViewMode] = useState('semanal');
+    const [summaryMonthKey, setSummaryMonthKey] = useState(() => {
+        const buckets = getSixMonthBuckets();
+        return buckets[buckets.length - 1]?.key ?? '';
+    });
     const navigate = useNavigate();
+    const pieChartRef = useRef(null);
+    const gaugeChartRef = useRef(null);
 
     useEffect(() => {
         const usuarioGuardado = localStorage.getItem('usuario');
@@ -66,6 +116,198 @@ const Engineer = () => {
         fetchTickets();
     }, []);
 
+    const engineerTickets = tickets.filter((ticket) => usuario && ticket.ingeniero === usuario.nombre);
+
+    useEffect(() => {
+        if (!usuario || (!pieChartRef.current && !gaugeChartRef.current)) return;
+
+        const pieDom = pieChartRef.current;
+        const pieChart = pieDom ? (echarts.getInstanceByDom(pieDom) ?? echarts.init(pieDom)) : null;
+
+        const gaugeDom = gaugeChartRef.current;
+        const gaugeChart = gaugeDom ? (echarts.getInstanceByDom(gaugeDom) ?? echarts.init(gaugeDom)) : null;
+
+        const sixMonths = getSixMonthBuckets();
+        const selectedSummaryMonth =
+            sixMonths.find((bucket) => bucket.key === summaryMonthKey) ??
+            sixMonths[sixMonths.length - 1];
+
+        const now = new Date();
+        const weekStart = new Date(now);
+        const day = weekStart.getDay();
+        const diffToMonday = day === 0 ? -6 : 1 - day;
+        weekStart.setDate(weekStart.getDate() + diffToMonday);
+        weekStart.setHours(0, 0, 0, 0);
+
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        weekEnd.setHours(23, 59, 59, 999);
+
+        const filteredSummaryTickets = engineerTickets.filter((ticket) => {
+            const date = getTicketDate(ticket);
+            if (!date) return false;
+
+            if (summaryViewMode === 'mensual') {
+                return (
+                    date.getFullYear() === selectedSummaryMonth.year &&
+                    date.getMonth() === selectedSummaryMonth.month
+                );
+            }
+
+            return date >= weekStart && date <= weekEnd;
+        });
+
+        const enProgreso = filteredSummaryTickets.filter((ticket) => ticket.estatus === 'En Progreso').length;
+        const cerrados = filteredSummaryTickets.filter(
+            (ticket) => ticket.estatus === 'Cerrado' || ticket.estatus === 'Cerrados'
+        ).length;
+        const pendientes = filteredSummaryTickets.filter((ticket) => ticket.estatus === 'Abierto').length;
+
+        pieChart?.setOption(
+            {
+                tooltip: {
+                    trigger: 'item',
+                },
+                legend: {
+                    orient: 'horizontal',
+                    left: 'center',
+                    bottom: 'bottom',
+                    padding: 10,
+                    textStyle: {
+                        color: '#fff',
+                    },
+                },
+                series: [
+                    {
+                        name: 'Tickets',
+                        type: 'pie',
+                        radius: '65%',
+                        center: ['50%', '48%'],
+                        data: [
+                            { value: enProgreso, name: 'En progreso' },
+                            { value: cerrados, name: 'Cerrados' },
+                            { value: pendientes, name: 'Pendientes' },
+                        ],
+                        label: {
+                            color: '#fff',
+                        },
+                        emphasis: {
+                            itemStyle: {
+                                shadowBlur: 10,
+                                shadowOffsetX: 0,
+                            },
+                        },
+                    },
+                ],
+            },
+            true
+        );
+
+        const closedStatuses = new Set(['cerrado', 'cerrados']);
+        const closedTickets = filteredSummaryTickets.filter((ticket) =>
+            closedStatuses.has(String(ticket?.estatus ?? '').toLowerCase().trim())
+        );
+        const ratedValues = closedTickets
+            .map((ticket) => {
+                const raw = ticket?.calificacion ?? ticket?.rating ?? ticket?.score ?? ticket?.puntuacion ?? ticket?.calificacionTicket;
+                const value = Number(raw);
+                return Number.isFinite(value) ? value : null;
+            })
+            .filter((value) => value != null && value > 0);
+
+        const ratedCount = ratedValues.length;
+        const avgRating = ratedCount ? ratedValues.reduce((acc, value) => acc + value, 0) / ratedValues.length : 0;
+
+        gaugeChart?.setOption(
+            {
+                series: [
+                    {
+                        type: 'gauge',
+                        startAngle: 180,
+                        endAngle: 0,
+                        center: ['50%', '90%'],
+                        radius: '115%',
+                        min: 0,
+                        max: 5,
+                        splitNumber: 5,
+                        axisLine: {
+                            lineStyle: {
+                                width: 10,
+                                color: [
+                                    [0.2, '#ff4d4f'],
+                                    [0.4, '#fa8c16'],
+                                    [0.6, '#facc15'],
+                                    [0.8, '#52c41a'],
+                                    [1, '#1890ff'],
+                                ],
+                            },
+                        },
+                        pointer: {
+                            icon: 'path://M12.8,0.7l12,40.1H0.7L12.8,0.7z',
+                            length: '12%',
+                            width: 18,
+                            offsetCenter: [0, '-55%'],
+                            itemStyle: { color: 'auto' },
+                        },
+                        axisTick: {
+                            length: 10,
+                            lineStyle: { color: 'auto', width: 2 },
+                        },
+                        splitLine: {
+                            length: 16,
+                            lineStyle: { color: 'auto', width: 4 },
+                        },
+                        axisLabel: {
+                            color: '#fff',
+                            fontSize: 12,
+                            distance: -38,
+                            formatter: (value) => {
+                                const rounded = Math.round(value);
+                                if (rounded === 0) return '';
+                                if (rounded < 0 || rounded > 5) return '';
+                                return String(rounded);
+                            },
+                        },
+                        title: {
+                            offsetCenter: [0, '30%'],
+                            fontSize: 14,
+                            color: '#fff',
+                        },
+                        detail: {
+                            fontSize: 26,
+                            offsetCenter: [0, '-6%'],
+                            valueAnimation: true,
+                            formatter: (value) => {
+                                if (!ratedCount) return '--';
+                                return `${Number(value).toFixed(1)}/5`;
+                            },
+                            color: 'inherit',
+                        },
+                        data: [
+                            {
+                                value: Math.max(0, Math.min(5, avgRating)),
+                                name: ratedCount ? 'Promedio (cerrados)' : 'Sin calificación',
+                            },
+                        ],
+                    },
+                ],
+            },
+            true
+        );
+
+        const onResize = () => {
+            pieChart?.resize();
+            gaugeChart?.resize();
+        };
+
+        window.addEventListener('resize', onResize);
+        return () => {
+            window.removeEventListener('resize', onResize);
+            pieChart?.dispose();
+            gaugeChart?.dispose();
+        };
+    }, [usuario, engineerTickets, summaryMonthKey, summaryViewMode]);
+
     if (!usuario) {
         return (
             <div className="perfil-container">
@@ -88,7 +330,7 @@ const Engineer = () => {
                         <div className="engineer-card green">
                             <div className="icon">
                                 <h3>Tickets asignados</h3>
-                                <p>{tickets.filter(t => usuario && t.ingeniero === usuario.nombre).length}</p>
+                                <p>{engineerTickets.length}</p>
                             </div>
                             <div className="icon">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="100" height="90" fill="currentColor" class="bi bi-file-text" viewBox="0 0 16 16">
@@ -101,7 +343,7 @@ const Engineer = () => {
                         <div className="engineer-card green-2">
                             <div className="icon">
                                 <h3>En proceso</h3>
-                                <p>{tickets.filter(t => usuario && t.ingeniero === usuario.nombre && t.estatus === 'En proceso').length}</p>
+                                <p>{engineerTickets.filter(t => t.estatus === 'En Progreso').length}</p>
                             </div>
                             <div className="icon">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="100" height="90" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16">
@@ -114,7 +356,7 @@ const Engineer = () => {
                         <div className="engineer-card green-2" style={{ padding: '24px' }}>
                             <div className="icon">
                                 <h3>Cerrados</h3>
-                                <p>{tickets.filter(t => usuario && t.ingeniero === usuario.nombre && (t.estatus === 'Cerrado' || t.estatus === 'Cerrados')).length}</p>
+                                <p>{engineerTickets.filter(t => t.estatus === 'Cerrado' || t.estatus === 'Cerrados').length}</p>
                             </div>
                             <div className="icon">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" fill="currentColor" class="bi bi-x-square" viewBox="0 0 16 16">
@@ -155,60 +397,83 @@ const Engineer = () => {
                         </button>
                     </div>
 
-                    {/* Sección de tickets: ocupando todo el ancho */}
+                    {/* Sección de resumen: ocupando todo el ancho */}
                     <div style={{ display: 'flex', gap: '32px', marginTop: '40px', width: '110%', justifyContent: 'space-between', alignItems: 'stretch' }}>
-                        {/* Tickets urgentes */}
+                        {/* Resumen de tickets levantados */}
                         <div style={{
                             flex: 1,
                             background: 'rgba(244, 242, 242, 0.18)',
                             border: '1.5px solid rgba(255,255,255,0.35)',
                             borderRadius: '18px',
                             padding: '24px',
-                            maxHeight: '480px',
-                            overflowY: 'auto',
+                            minHeight: '480px',
                             boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+                            display: 'flex',
+                            flexDirection: 'column',
                         }}>
-                            <h2 style={{ color: '#fff', marginTop: 0, fontWeight: 600, fontSize: '2rem', textAlign: 'center', marginBottom: '18px' }}>Tus tickets urgentes</h2>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                                {tickets.filter(t => usuario && t.ingeniero === usuario.nombre && t.prioridad === 'Alta')
-                                    .slice().sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion))
-                                    .map((ticket) => (
-                                    <div key={ticket.folio} style={{ background: 'rgba(244, 242, 242, 0.18)', borderRadius: '22px', padding: '22px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                                        <div style={{ fontWeight: 700, fontSize: '1.6rem', color: '#ffffffff', marginBottom: '8px' }}>{ticket.tipo_ticket}</div>
-                                        <div style={{ color: '#ffffffff', fontSize: '1.1rem', marginBottom: '2px' }}>{ticket.usuario}</div>
-                                        <div style={{ color: '#ffffffff', fontSize: '1.1rem', marginBottom: '12px' }}>{ticket.area ?? ticket.departamento ?? ''}</div>
-                                        <button onClick={() => navigate(`/ticketsIngeniero?folio=${encodeURIComponent(ticket.folio ?? ticket.id)}`)} style={{ position: 'absolute', right: '24px', top: '24px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: '12px', padding: '10px 24px', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>Ver mas</button>
-                                        <div style={{ position: 'absolute', right: '24px', bottom: '18px', color: '#222', fontWeight: 500, fontSize: '1.1rem' }}>{new Date(ticket.fechaCreacion).toLocaleDateString()}</div>
-                                    </div>
-                                ))}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                                <h2 style={{ color: '#fff', marginTop: 0, fontWeight: 600, fontSize: '2rem', marginBottom: '18px' }}>Resumen de tickets levantados</h2>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <select
+                                        value={summaryViewMode}
+                                        onChange={(e) => setSummaryViewMode(e.target.value)}
+                                        style={{
+                                            background: 'rgba(255,255,255,0.12)',
+                                            border: '1px solid rgba(255,255,255,0.2)',
+                                            color: '#fff',
+                                            borderRadius: 8,
+                                            padding: '6px 10px',
+                                            fontSize: 12,
+                                        }}
+                                    >
+                                        <option value="semanal" style={{ color: '#000' }}>Semana</option>
+                                        <option value="mensual" style={{ color: '#000' }}>Mes</option>
+                                    </select>
+                                    {summaryViewMode === 'mensual' ? (
+                                        <select
+                                            value={summaryMonthKey}
+                                            onChange={(e) => setSummaryMonthKey(e.target.value)}
+                                            style={{
+                                                background: 'rgba(255,255,255,0.12)',
+                                                border: '1px solid rgba(255,255,255,0.2)',
+                                                color: '#fff',
+                                                borderRadius: 8,
+                                                padding: '6px 10px',
+                                                fontSize: 12,
+                                            }}
+                                        >
+                                            {getSixMonthBuckets().map((bucket) => (
+                                                <option key={bucket.key} value={bucket.key} style={{ color: '#000' }}>
+                                                    {String(bucket.label).toUpperCase()}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    ) : null}
+                                </div>
                             </div>
+                            <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 8, marginTop: 6, color: '#fff' }}>
+                                Distribución por estatus de tus tickets
+                            </div>
+                            <div ref={pieChartRef} style={{ width: '100%', flex: 1, minHeight: 0 }} />
                         </div>
 
-                        {/* Tickets asignados */}
+                        {/* Calificación promedio */}
                         <div style={{
                             flex: 1,
                             background: 'rgba(244, 242, 242, 0.18)',
                             border: '1.5px solid rgba(255,255,255,0.35)',
                             borderRadius: '18px',
                             padding: '24px',
-                            maxHeight: '480px',
-                            overflowY: 'auto',
+                            minHeight: '480px',
                             boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+                            display: 'flex',
+                            flexDirection: 'column',
                         }}>
-                            <h2 style={{ color: '#fff', marginTop: 0, fontWeight: 600, fontSize: '2rem', textAlign: 'center', marginBottom: '18px' }}>Tus tickets asignados</h2>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                                {tickets.filter(t => usuario && t.ingeniero === usuario.nombre)
-                                    .slice().sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion))
-                                    .map((ticket) => (
-                                    <div key={ticket.folio} style={{ background: 'rgba(244, 242, 242, 0.18)', borderRadius: '22px', padding: '22px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                                        <div style={{ fontWeight: 700, fontSize: '1.6rem', color: '#ffffffff', marginBottom: '8px' }}>{ticket.tipo_ticket}</div>
-                                        <div style={{ color: '#ffffffff', fontSize: '1.1rem', marginBottom: '2px' }}>{ticket.usuario}</div>
-                                        <div style={{ color: '#ffffffff', fontSize: '1.1rem', marginBottom: '12px' }}>{ticket.area ?? ticket.departamento ?? ''}</div>
-                                        <button onClick={() => navigate(`/ticketsIngeniero?folio=${encodeURIComponent(ticket.folio ?? ticket.id)}`)} style={{ position: 'absolute', right: '24px', top: '24px', background: '#3ce73cff', color: '#fff', border: 'none', borderRadius: '12px', padding: '10px 24px', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>Ver mas</button>
-                                        <div style={{ position: 'absolute', right: '24px', bottom: '18px', color: '#222', fontWeight: 500, fontSize: '1.1rem' }}>{new Date(ticket.fechaCreacion).toLocaleDateString()}</div>
-                                    </div>
-                                ))}
+                            <h2 style={{ color: '#fff', marginTop: 0, fontWeight: 600, fontSize: '2rem', textAlign: 'center', marginBottom: '18px' }}>Calificación promedio</h2>
+                            <div style={{ fontSize: 13, opacity: 0.85, marginTop: 8, marginBottom: 8, color: '#fff' }}>
+                                Promedio de tus tickets cerrados calificados
                             </div>
+                            <div ref={gaugeChartRef} style={{ width: '100%', flex: 1, minHeight: 0 }} />
                         </div>
                     </div>
                 </div>

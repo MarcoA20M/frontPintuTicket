@@ -14,6 +14,7 @@ const TicketDetailChat = () => {
   const { subscribeNotifications, subscribeTicketTopic } = useNotifications();
 
   const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
   const [ratingComment, setRatingComment] = useState("");
   const [ratingLoading, setRatingLoading] = useState(false);
   const [ratingSuccess, setRatingSuccess] = useState("");
@@ -22,6 +23,7 @@ const TicketDetailChat = () => {
   useEffect(() => {
     if (showModal) {
       setRating(0);
+      setHoverRating(0);
       setRatingComment("");
       setRatingSuccess("");
     }
@@ -105,6 +107,12 @@ const TicketDetailChat = () => {
   const formatMessageText = (text) =>
     String(text || "").split("**").map((part, i) => i % 2 ? <strong key={i}>{part}</strong> : part);
 
+  const getRatingFromPointer = (event) => {
+    const { left, width } = event.currentTarget.getBoundingClientRect();
+    const pointerX = Math.min(Math.max(event.clientX - left, 0), width);
+    return Math.min(5, Math.max(1, Math.ceil((pointerX / width) * 5)));
+  };
+
   const messages = [
     { sender: "system", text: `👋 Ticket **${ticket.folio}** cargado correctamente.` },
     { sender: "user", text: `🧾 ${ticket.descripcion}` },
@@ -153,10 +161,13 @@ const TicketDetailChat = () => {
             <div className="rating-row" style={{textAlign: 'center'}}>
               <div 
                 className="modal-stars" 
-                style={{ "--rating": `${(rating / 5) * 100}%` }}
+                style={{ "--rating": `${((hoverRating || rating) / 5) * 100}%` }}
+                onMouseMove={(e) => setHoverRating(getRatingFromPointer(e))}
+                onMouseLeave={() => setHoverRating(0)}
                 onClick={(e) => {
-                  const x = e.clientX - e.currentTarget.getBoundingClientRect().left;
-                  setRating(Math.ceil((x / e.currentTarget.offsetWidth) * 5));
+                  const nextRating = getRatingFromPointer(e);
+                  setRating(nextRating);
+                  setHoverRating(nextRating);
                 }}
               />
             </div>

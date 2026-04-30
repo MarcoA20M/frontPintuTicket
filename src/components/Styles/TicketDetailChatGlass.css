@@ -12,8 +12,14 @@
     padding: 16px;
 }
 
+.ticket-detail-chat-container h2{
+    color: white;
+}
+
+
 .ticket-chat-title {
     margin-bottom: 12px;
+    
 }
 
 .chat-history {

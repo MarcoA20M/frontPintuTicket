@@ -123,6 +123,10 @@
     position: relative;
 }
 
+.main-content {
+    color: white;
+}
+
 .main-title {
     font-size: clamp(1.2rem, 2.2vw, 1.8rem);
     margin-bottom: 1.5rem;
@@ -240,6 +244,8 @@
 .send-button:active {
     transform: translateY(-50%) scale(0.95);
 }
+
+
 
 /* Responsive adjustments */
 @media (max-width: 1024px) {
