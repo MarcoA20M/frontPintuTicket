@@ -633,7 +633,7 @@ const Admin = () => {
         </div>
 
         {/* Dos paneles: Equipo y Resumen */}
-        <div style={{ display: "grid", gridTemplateColumns: "95fr 75fr 65fr repeat(4, 1fr)", gridTemplateRows: "270px 370px", gridColumnGap: "15px", gridRowGap: "15px" }}>
+        <div style={{ display: "grid", width: "100%", boxSizing: "border-box", gridTemplateColumns: "1.5fr 1.05fr 1fr", gridTemplateRows: "270px 370px", gridColumnGap: "15px", gridRowGap: "15px" }}>
           {/* Panel de equipo */}
           <div className="uno" style={{gridArea: "1 / 1 / 2 / 2", ...glassStyle, color: "#fff", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
@@ -760,14 +760,14 @@ const Admin = () => {
             </div>
             <div ref={gaugeChartRef} style={{ width: '100%', flex: 1, minHeight: 0 }} />
           </div>
-          <div className="cinco" style={{ gridArea: "2 / 3 / 3 / 4", ...glassStyle, color: "#fff", display: "flex", flexDirection: "column" }}>
+          <div className="cinco" style={{ gridArea: "2 / 3 / 3 / 4", ...glassStyle, color: "#fff", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
               <h3 style={{ margin: 0, fontSize: 18 }}>Top categorías</h3>
               <div style={{ display: 'flex', gap: 8 }}>
                 Global
               </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginTop: 16, flex: 1 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginTop: 16, flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 4 }}>
               {sortedCategories.map((category, index) => (
                 <div key={category.name} style={{ display: 'grid', gridTemplateColumns: '52px 1fr auto', gap: 14, alignItems: 'center' }}>
                   <div style={{
