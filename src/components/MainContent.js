@@ -5,6 +5,17 @@ import { createTicketCreate, getTicketById } from '../services/ticketService';
 import { useNotifications } from '../contexts/NotificationContext';
 import '../components/Styles/mainContent.css';
 
+const TIPO_TICKET_LABELS = {
+    'Soporte Técnico': 'Algo pasa con el sistema',
+    'Mantenimiento': 'Algo le pasa a mi computadora o impresora',
+    'Solicitud de Compra': 'Necesito algo (mouse, teclado, etc)',
+    'Capacitación': 'Quiero aprender a usar alguna herramienta',
+    'Otros': 'Tengo otra solicitud',
+    'Requerimiento': 'Necesito equipo o accesorios',
+};
+
+const getTipoTicketLabel = (tipo) => TIPO_TICKET_LABELS[tipo] || tipo;
+
 const MainContent = () => {
     // 1. Estados para la lógica de la UI y el chat
     const [messages, setMessages] = useState([]);
@@ -64,8 +75,9 @@ const MainContent = () => {
 
     const handleTipoClick = (tipo) => {
         setTicketSeleccionado(tipo);
+        const tipoLabel = getTipoTicketLabel(tipo.tipo);
         // marcar este mensaje como 'selected' para estilos especiales
-        setMessages(prev => [...prev, { text: `Has seleccionado: ${tipo.tipo}`, sender: "user", selected: true }]);
+        setMessages(prev => [...prev, { text: `Has seleccionado: ${tipoLabel}`, sender: "user", selected: true }]);
         setShowBackButton(true);
         
         if (tipo.tipo === "Requerimiento") {
@@ -73,7 +85,7 @@ const MainContent = () => {
             setMessages(prev => [...prev, { text: "Selecciona el tipo de requerimiento:", sender: "system" }]);
         } else {
             setSelectedRequerimiento(false);
-            setMessages(prev => [...prev, { text: `Describe tu problema relacionado con: ${tipo.tipo}`, sender: "system" }]);
+            setMessages(prev => [...prev, { text: `Cuéntanos brevemente qué necesitas sobre: ${tipoLabel}`, sender: "system" }]);
         }
     };
 
@@ -177,7 +189,7 @@ const MainContent = () => {
                                 className="tipo-button"
                                 onClick={() => handleTipoClick(tipo)}
                             >
-                                {tipo.tipo}
+                                {getTipoTicketLabel(tipo.tipo)}
                             </button>
                         ))}
                     </div>

@@ -17,8 +17,63 @@ import './Styles/TicketDetailChatGlass.css';
 
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL?.replace(/\/+$/, '');
 
+const getTicketRawDate = (ticket) => {
+    return (
+        ticket?.fechaCreacion ??
+        ticket?.fecha_creacion ??
+        ticket?.fecha ??
+        ticket?.createdAt ??
+        ticket?.created_at ??
+        ticket?.fechaAlta ??
+        null
+    );
+};
+
+const getTicketDate = (ticket) => {
+    const rawDate = getTicketRawDate(ticket);
+    if (!rawDate) return null;
+
+    const date = rawDate instanceof Date ? rawDate : new Date(rawDate);
+    return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const hasExplicitTime = (rawDate) => {
+    if (!rawDate) return false;
+
+    if (rawDate instanceof Date) {
+        return Boolean(
+            rawDate.getHours() ||
+            rawDate.getMinutes() ||
+            rawDate.getSeconds() ||
+            rawDate.getMilliseconds()
+        );
+    }
+
+    const value = String(rawDate).trim();
+    return /T\d{2}:\d{2}/.test(value) || /\s\d{2}:\d{2}/.test(value);
+};
+
+const formatTicketDate = (ticket) => {
+    const rawDate = getTicketRawDate(ticket);
+    const parsedDate = getTicketDate(ticket);
+
+    if (!parsedDate) return '';
+
+    return hasExplicitTime(rawDate)
+        ? parsedDate.toLocaleString()
+        : parsedDate.toLocaleDateString();
+};
+
+const isSameTicket = (left, right) => {
+    if (!left || !right) return false;
+    if (left.folio && right.folio) return left.folio === right.folio;
+    if (left.id != null && right.id != null) return left.id === right.id;
+    return false;
+};
+
 const Tracking = () => {
     const socketRef = useRef(null);
+    const attemptedDetailFetchRef = useRef(new Set());
     const { addNotification, subscribeNotifications, subscribeTicketTopic } = useNotifications();
 
     const [ingenieros, setIngenieros] = useState([]);
@@ -149,8 +204,8 @@ const Tracking = () => {
 
     // Ordenar tickets por fecha (más recientes primero)
     const ticketsOrdenados = [...currentTickets].sort((a, b) => {
-        const da = a.fechaCreacion ? new Date(a.fechaCreacion) : new Date(0);
-        const db = b.fechaCreacion ? new Date(b.fechaCreacion) : new Date(0);
+        const da = getTicketDate(a) ?? new Date(0);
+        const db = getTicketDate(b) ?? new Date(0);
         return db - da;
     });
 
@@ -250,6 +305,45 @@ const Tracking = () => {
 
         return () => cleanup?.();
     }, [ticketActual?.folio, subscribeTicketTopic]);
+
+    useEffect(() => {
+        ticketsOrdenados.forEach((ticket) => {
+            const ticketKey = String(ticket?.folio ?? ticket?.id ?? '');
+            const rawDate = getTicketRawDate(ticket);
+
+            if (!ticketKey || !rawDate || hasExplicitTime(rawDate)) {
+                return;
+            }
+
+            if (attemptedDetailFetchRef.current.has(ticketKey)) {
+                return;
+            }
+
+            attemptedDetailFetchRef.current.add(ticketKey);
+
+            getTicketById(ticket.folio ?? ticket.id)
+                .then((fullTicket) => {
+                    if (!fullTicket) return;
+
+                    setTickets((previousTickets) =>
+                        previousTickets.map((currentTicket) =>
+                            isSameTicket(currentTicket, ticket)
+                                ? { ...currentTicket, ...fullTicket }
+                                : currentTicket
+                        )
+                    );
+
+                    setTicketActual((previousTicket) =>
+                        isSameTicket(previousTicket, ticket)
+                            ? { ...previousTicket, ...fullTicket }
+                            : previousTicket
+                    );
+                })
+                .catch((error) => {
+                    console.warn('Tracking: no se pudo obtener detalle del ticket para completar la fecha.', error);
+                });
+        });
+    }, [ticketsOrdenados]);
 
     // cargar datos necesarios: usuarios, tipos y prioridades (desde tickets existentes)
     useEffect(() => {
@@ -674,7 +768,7 @@ const Tracking = () => {
                                 <div className="center-top">
                                     <div>
                                         <div className="subject">Asunto : {ticketActual?.tipo_ticket ?? '—'}</div>
-                                        <div className="meta">Fecha: {ticketActual ? new Date(ticketActual.fechaCreacion).toLocaleString() : '—'} · Departamento: {ticketActual?.departamento ?? ticketActual?.area ?? '—'}</div>
+                                        <div className="meta">Fecha: {ticketActual ? formatTicketDate(ticketActual) : '—'} · Departamento: {ticketActual?.departamento ?? ticketActual?.area ?? '—'}</div>
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
                                         <div>Folio : {ticketActual?.folio ?? '—'}</div>
@@ -723,7 +817,7 @@ const Tracking = () => {
                                     </div>
                                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                                         <div style={{ fontSize: 13 }}>{formatUsuario(t.usuario) || 'Solicitante'}</div>
-                                        <div style={{ fontSize: 12, opacity: 0.8 }}>{t.fechaCreacion ? new Date(t.fechaCreacion).toLocaleString() : ''}</div>
+                                        <div style={{ fontSize: 12, opacity: 0.8 }}>{formatTicketDate(t)}</div>
                                         <div
                                             className={`card-status ${String(t.estatus || '')
                                                 .toLowerCase()
@@ -936,7 +1030,7 @@ const Tracking = () => {
                                                     {formatMessageText(msg.text)}
                                                 </div>
                                                 <span className="timestamp">
-                                                    {new Date(ticketActual.fechaCreacion).toLocaleString()}
+                                                    {formatTicketDate(ticketActual)}
                                                 </span>
                                             </div>
                                         ))}

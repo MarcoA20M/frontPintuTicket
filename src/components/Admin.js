@@ -584,6 +584,36 @@ const Admin = () => {
       </div>
     );
   }
+
+  const categoryPalette = [
+    { accent: "#4f8cff", glow: "rgba(79,140,255,0.22)", badge: "rgba(43,82,190,0.78)" },
+    { accent: "#9656ff", glow: "rgba(150,86,255,0.22)", badge: "rgba(92,48,170,0.8)" },
+    { accent: "#f59e0b", glow: "rgba(245,158,11,0.22)", badge: "rgba(153,98,20,0.82)" },
+    { accent: "#2dd4bf", glow: "rgba(45,212,191,0.2)", badge: "rgba(17,104,101,0.82)" },
+    { accent: "#ec4899", glow: "rgba(236,72,153,0.22)", badge: "rgba(132,43,93,0.82)" },
+    { accent: "#22c55e", glow: "rgba(34,197,94,0.22)", badge: "rgba(25,108,60,0.82)" },
+  ];
+
+  const categoryCounts = tickets.reduce((acc, ticket) => {
+    const categoryName = (ticket?.tipo_ticket || ticket?.tipo || "Sin categoria").toString().trim() || "Sin categoria";
+    acc[categoryName] = (acc[categoryName] || 0) + 1;
+    return acc;
+  }, {});
+
+  const sortedCategories = Object.entries(categoryCounts)
+    .map(([name, total]) => ({ name, total }))
+    .sort((left, right) => right.total - left.total)
+    .slice(0, 5)
+    .map((item, index, list) => {
+      const totalTickets = list.reduce((sum, current) => sum + current.total, 0);
+      const palette = categoryPalette[index % categoryPalette.length];
+      return {
+        ...item,
+        ...palette,
+        percentage: totalTickets ? Math.round((item.total / totalTickets) * 100) : 0,
+      };
+    });
+
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
 
@@ -730,8 +760,63 @@ const Admin = () => {
             </div>
             <div ref={gaugeChartRef} style={{ width: '100%', flex: 1, minHeight: 0 }} />
           </div>
-          <div className="cinco" style={{ gridArea: "2 / 3 / 3 / 4", ...glassStyle, color: "#fff" }}>
-            
+          <div className="cinco" style={{ gridArea: "2 / 3 / 3 / 4", ...glassStyle, color: "#fff", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <h3 style={{ margin: 0, fontSize: 18 }}>Top categorías</h3>
+              <div style={{ display: 'flex', gap: 8 }}>
+                Global
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginTop: 16, flex: 1 }}>
+              {sortedCategories.map((category, index) => (
+                <div key={category.name} style={{ display: 'grid', gridTemplateColumns: '52px 1fr auto', gap: 14, alignItems: 'center' }}>
+                  <div style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: 18,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: `linear-gradient(145deg, ${category.badge}, ${category.glow})`,
+                    boxShadow: `inset 0 1px 0 rgba(255,255,255,0.1), 0 12px 26px ${category.glow}`,
+                    color: '#fff',
+                    fontSize: 20,
+                    fontWeight: 700,
+                  }}>
+                    {String(index + 1).padStart(2, '0')}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+                      <div style={{ fontSize: 16, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {category.name}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexShrink: 0 }}>
+                        <span style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>{category.total}</span>
+                        <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>({category.percentage}%)</span>
+                      </div>
+                    </div>
+                    <div style={{
+                      marginTop: 12,
+                      width: '100%',
+                      height: 14,
+                      borderRadius: 999,
+                      background: 'rgba(104,122,189,0.18)',
+                      overflow: 'hidden',
+                      boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.24)',
+                    }}>
+                      <div style={{
+                        width: `${category.percentage}%`,
+                        minWidth: category.total > 0 ? 24 : 0,
+                        height: '100%',
+                        borderRadius: 999,
+                        background: `linear-gradient(90deg, ${category.accent}, ${category.accent})`,
+                        boxShadow: `0 0 16px ${category.glow}`,
+                      }} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
